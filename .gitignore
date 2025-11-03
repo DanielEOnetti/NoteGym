@@ -1,0 +1,45 @@
+# --- Entorno y Secretos (¡MUY IMPORTANTE!) ---
+.env
+*.env
+.env.*
+
+# --- Base de Datos ---
+*.sqlite3
+db.sqlite3
+
+# --- Django ---
+*.log
+staticfiles/
+media/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+*/venv/
+*/env/
+*/.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.Python
+celerybeat-schedule
+celerybeat.pid
+
+# --- Dependencias de Frontend (Tailwind) ---
+node_modules/
+npm-debug.log
+package-lock.json
+
+# --- Archivos del Sistema Operativo ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDEs y Editores ---
+.vscode/
+.idea/
+*.swp
+*.swo

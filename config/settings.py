@@ -1,46 +1,60 @@
 import os
 from pathlib import Path
+import environ  # Importado para gestionar variables de entorno
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'), 
-]
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# --- Configuración de django-environ (CLAVE) ---
+# https://django-environ.readthedocs.io/en/latest/
+env = environ.Env(
+    # set casting, default value
+    DEBUG=(bool, False)
+)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-yb_52^kbqj$2cj&*e)((#57=knu5-bhsdg=(8ncnk#985n7x6o"
+# Lee el archivo .env si existe (para desarrollo local)
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# --- Variables de Seguridad (Leídas desde el entorno) ---
+# Render generará esto automáticamente
+SECRET_KEY = env('SECRET_KEY')
 
-ALLOWED_HOSTS = []
+# Render lo pondrá en False. Tu .env local debe tener DEBUG=True
+DEBUG = env.bool('DEBUG')
+
+# Render añadirá 'notegym.onrender.com' automáticamente.
+# Añade tu dominio personalizado aquí si lo tienes.
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 
 # Application definition
-
 INSTALLED_APPS = [
-    
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+
+    # --- Whitenoise (CLAVE CORREGIDA) ---
+    # La *aplicación* va aquí
+    "whitenoise", 
+
     "django.contrib.staticfiles",
     "core",
-    "django.contrib.admin",
     "tailwind",
     "theme",
-    "django_browser_reload",
+    # "django_browser_reload", # Se añade condicionalmente más abajo
     'django.contrib.humanize',
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    'django_browser_reload.middleware.BrowserReloadMiddleware',
+    # --- Whitenoise (CLAVE) ---
+    # Debe ir justo después de SecurityMiddleware
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -48,6 +62,15 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# --- Lógica condicional para DEBUG ---
+# django_browser_reload solo debe correr en desarrollo
+if DEBUG:
+    INSTALLED_APPS.append("django_browser_reload")
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+        "django_browser_reload.middleware.BrowserReloadMiddleware",
+    )
 
 ROOT_URLCONF = "config.urls"
 
@@ -69,67 +92,71 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# --- Base de Datos (CLAVE) ---
 
+# Por defecto, usamos SQLite para desarrollo local (si DEBUG=True)
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
+# Si NO estamos en DEBUG (es decir, en producción en Render)...
+if not DEBUG:
+    # ...entonces lee la DATABASE_URL que Render provee.
+    DATABASES['default'] = env.db()
+
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
+# ... (tu configuración está bien) ...
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
+# ... (tu configuración está bien) ...
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
+# --- Archivos Estáticos (CSS, JavaScript, Images) (CLAVE) ---
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# --- ESTO SÍ ES CORRECTO ---
+# El *motor de almacenamiento* va aquí
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-
+# --- Configuración de Tailwind ---
 TAILWIND_APP_NAME = 'theme'
-NPM_BIN_PATH = r"C:\Users\Melio\AppData\Roaming\npm\npm.cmd"
 INTERNAL_IPS = ["127.0.0.1"]
 
+# ¡ELIMINADO! Esta ruta de Windows no funcionará en Render (Linux).
+# El build.sh se encargará de instalar y correr npm.
+# NPM_BIN_PATH = r"C:\Users\Melio\AppData\Roaming\npm\npm.cmd"
 
+
+# --- Archivos Media (Subidos por usuarios) ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
+# Advertencia: Render tiene un sistema de archivos efímero.
+# Los archivos subidos a MEDIA_ROOT se borrarán en cada despliegue.
+# La solución permanente es usar S3 (Opción 2).
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
