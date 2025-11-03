@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Registro - NoteGym{% endblock %}
+
+{% block main_wrapper %}
+<div class="min-h-screen flex"> 
+
+    <div class="hidden md:flex w-1/2" 
+         style="background-image: url('{% static 'images/logo.png' %}'); 
+                background-size: cover; 
+                background-repeat: no-repeat; 
+                background-position: center;">
+    </div>
+
+    <div class="w-full md:w-1/2 flex justify-center items-center py-8 px-4 sm:px-6 lg:px-8 bg-primary text-white overflow-y-auto"> 
+        <div class="max-w-md w-full space-y-4">
+
+            <div class="text-center">
+                <h2 class="text-3xl font-extrabold tracking-tight text-white">
+                    Crea tu cuenta
+                </h2>
+                <p class="mt-2 text-sm text-indigo-200">
+                    ¿Ya tienes una? 
+                    <a href="{% url 'login' %}" class="font-medium text-indigo-300 hover:text-white">
+                        Inicia sesión
+                    </a>
+                </p>
+            </div>
+
+            <form method="POST" class="space-y-4">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="p-4 mb-4 text-sm text-red-100 bg-red-800/50 rounded-lg">
+                    <span class="font-medium">Error:</span> {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+
+                <div>
+                    <label class="block text-sm font-bold text-white mb-2">1. Selecciona tu rol</label>
+                    <div class="grid grid-cols-2 gap-4" id="role-selection-container">
+                        
+                        <label class="role-card border-2 border-indigo-500 rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer bg-indigo-700 hover:bg-indigo-600 transition duration-200">
+                            <input type="radio" name="{{ form.tipo.name }}" value="entrenador" class="sr-only" {% if form.tipo.value == 'entrenador' %}checked{% endif %}>
+                            <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5h6m-6 9h4"></path></svg>
+                            <span class="font-semibold mt-2 text-white">Entrenador</span>
+                        </label>
+
+                        <label class="role-card border-2 border-indigo-500 rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer bg-indigo-700 hover:bg-indigo-600 transition duration-200">
+                            <input type="radio" name="{{ form.tipo.name }}" value="atleta" class="sr-only" {% if form.tipo.value == 'atleta' %}checked{% endif %}>
+                            <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.25278C12 6.25278 15.068 3 17.9176 3C20.7672 3 23 5.23279 23 8.0824C23 10.932 20.7672 13.1648 17.9176 13.1648H6.0824C3.23279 13.1648 1 10.932 1 8.0824C1 5.23279 3.23279 3 6.0824 3C8.93201 3 12 6.25278 12 6.25278ZM12 6.25278V21"></path></svg>
+                            <span class="font-semibold mt-2 text-white">Atleta</span>
+                        </label>
+                    </div>
+                    {% for error in form.tipo.errors %}
+                        <p class="text-sm text-red-200 mt-1">{{ error }}</p>
+                    {% endfor %}
+                </div>
+
+                <div class="space-y-3">
+                    <label class="block text-sm font-bold text-white">2. Completa tus datos</label>
+                    
+                    {% for field in form %}
+                        {% if field.name != 'tipo' %}
+                            <div>
+                                <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-white mb-1">
+                                    {{ field.label }}
+                                </label>
+                                <input id="{{ field.id_for_label }}"
+                                       name="{{ field.name }}"
+                                       type="{% if 'password' in field.name %}password{% elif 'email' in field.name %}email{% else %}text{% endif %}"
+                                       autocomplete="{{ field.name }}"
+                                       required
+                                       value="{{ field.value|default:'' }}"
+                                       placeholder="{{ field.label }}"
+                                       class="appearance-none relative block w-full px-3 py-2.5 bg-secondary border border-gray-700 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+
+                                {% for error in field.errors %}
+                                    <p class="text-sm text-red-200 mt-1">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div>
+                    <button type="submit"
+                            class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-primary bg-white hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary focus:ring-white transition duration-150 ease-in-out">
+                        Registrarme
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock main_wrapper %}
+
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleContainer = document.getElementById('role-selection-container');
+    if (roleContainer) {
+        const radioInputs = roleContainer.querySelectorAll('input[type="radio"]');
+        
+        function applySelectionStyle() {
+            roleContainer.querySelectorAll('.role-card').forEach(label => {
+                label.classList.remove('border-white', 'bg-indigo-600', 'ring-2', 'ring-white');
+                label.classList.add('border-indigo-500', 'bg-indigo-700');
+            });
+
+            const checkedRadio = roleContainer.querySelector('input[type="radio"]:checked');
+            if (checkedRadio) {
+                const selectedCard = checkedRadio.closest('.role-card');
+                selectedCard.classList.add('border-white', 'bg-indigo-600', 'ring-2', 'ring-white'); 
+                selectedCard.classList.remove('border-indigo-500', 'bg-indigo-700');
+            }
+        }
+        applySelectionStyle();
+        radioInputs.forEach(radio => {
+            radio.addEventListener('change', applySelectionStyle);
+        });
+    }
+});
+</script>
+{% endblock %}

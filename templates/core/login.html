@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Iniciar Sesión - NoteGym{% endblock %}
+
+{% block main_wrapper %}
+<div class="min-h-screen flex flex-col md:flex-row bg-gray-50">
+
+    <div class="hidden md:flex w-full md:w-1/2 md:h-screen" 
+         style="background-image: url('{% static 'images/logo.png' %}'); 
+                background-size: cover; 
+                background-repeat: no-repeat; 
+                background-position: center;">
+    </div>
+
+    <div class="w-full md:w-1/2 flex justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-primary text-white min-h-screen"> 
+        <div class="max-w-md w-full space-y-8">
+            
+            <div class="text-center">
+                <h2 class="text-3xl font-extrabold tracking-tight text-white">
+                    Accede a tu cuenta
+                </h2>
+                <p class="mt-2 text-sm text-white">
+                    ¿No tienes una cuenta? 
+                    <a href="{% url 'registro' %}" class="font-medium text-indigo-300 hover:text-white">
+                        Regístrate aquí
+                    </a>
+                </p>
+            </div>
+
+            <form id="login-form" class="mt-8 space-y-6" method="POST">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                <div class="p-4 mb-4 text-sm text-red-100 bg-red-800/50 rounded-lg" role="alert"> 
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <p>{% if field != '__all__' %}<span class="font-medium">{{ field|capfirst }}: </span> {% endif %}{{ error }}</p>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-white mb-1">Usuario</label> 
+                        <input id="{{ form.username.id_for_label }}" name="{{ form.username.name }}" type="text" autocomplete="username" required
+                               class="appearance-none relative block w-full px-3 py-3 bg-secondary border border-gray-700 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                               placeholder="Nombre de usuario o Email">
+                    </div>
+                    <div>
+                        <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-white mb-1">Contraseña</label>
+                        <input id="{{ form.password.id_for_label }}" name="{{ form.password.name }}" type="password" autocomplete="current-password" required
+                               class="appearance-none relative block w-full px-3 py-3 bg-secondary border border-gray-700 placeholder-gray-400 text-white rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                               placeholder="Contraseña">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div class="text-sm">
+                        <a href="{% url 'password_reset' %}" class="font-medium text-indigo-300 hover:text-white">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" 
+                            class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-primary bg-white hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary focus:ring-white transition duration-150 ease-in-out">
+                        Iniciar Sesión
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<div id="loading-overlay" class="fixed inset-0 z-50 hidden flex-col items-center justify-center"
+     style="background-image: url('{% static 'images/logo.png' %}'); 
+            background-size: cover; 
+            background-repeat: no-repeat; 
+            background-position: center;">
+    
+    <div class="absolute inset-0 bg-primary/80 z-0"></div>
+
+    <div class="relative z-10 flex flex-col items-center">
+        <svg class="animate-spin -ml-1 mr-3 h-12 w-12 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        
+        <p class="mt-4 text-lg font-medium text-white">Iniciando sesión...</p>
+    </div>
+</div>
+{% endblock main_wrapper %}
+
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const loginForm = document.getElementById('login-form');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        loginForm.addEventListener('submit', function() {
+            loadingOverlay.classList.remove('hidden');
+            loadingOverlay.classList.add('flex');
+        });
+    });
+</script>
+{% endblock extra_js %}

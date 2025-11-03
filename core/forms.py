@@ -1,0 +1,344 @@
+# core/forms.py
+
+# Importaciones principales del framework Django para la construcción de formularios.
+from django import forms
+from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
+from django.forms import inlineformset_factory, modelformset_factory
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+
+# Importación de los modelos y clases requeridas en los formularios definidos.
+from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento
+from decimal import Decimal, ROUND_HALF_UP
+
+# ========================================================================
+# === ¡¡IMPORTS QUE FALTABAN PARA EL LOGIN!! ===
+# ========================================================================
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import authenticate, get_user_model
+
+
+# ========================================================================
+# Formulario de Registro de Usuario
+# ========================================================================
+class RegistroUsuarioForm(forms.ModelForm):
+    password1 = forms.CharField(label="Contraseña", widget=forms.PasswordInput)
+    password2 = forms.CharField(label="Repetir contraseña", widget=forms.PasswordInput)
+
+    class Meta:
+        model = PerfilUsuario
+        fields = ["nombre", "email", "tipo"]
+
+    def clean_password2(self):
+        p1 = self.cleaned_data.get("password1")
+        p2 = self.cleaned_data.get("password2")
+        if p1 and p2 and p1 != p2:
+            raise forms.ValidationError("Las contraseñas no coinciden")
+        return p2
+
+
+# ========================================================================
+# Formulario de Entrenamiento
+# ========================================================================
+INPUT_CLASSES = "appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+SELECT_CLASSES = INPUT_CLASSES
+TEXTAREA_CLASSES = INPUT_CLASSES + " h-24"
+
+class EntrenamientoForm(forms.ModelForm):
+    class Meta:
+        model = Entrenamiento
+        fields = ["atleta", "nombre", "notas"]
+        widgets = {
+            "atleta": forms.Select(attrs={"class": SELECT_CLASSES}),
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASSES}),
+            "notas": forms.Textarea(attrs={"class": TEXTAREA_CLASSES, "rows": 4}),
+        }
+        labels = {
+            "nombre": "Nombre del Entrenamiento ",
+            "atleta": "Atleta ",
+            "notas": "📝 Notas del Entrenamiento",
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        self.fields['atleta'].queryset = PerfilUsuario.objects.filter(tipo='atleta')
+
+# ========================================================================
+# Formulario de Detalle de Entrenamiento (para el Formset)
+# ========================================================================
+class DetalleEntrenamientoForm(forms.ModelForm):
+    class Meta:
+        model = DetalleEntrenamiento
+        fields = ["ejercicio", "notas"] 
+        widgets = {
+            "ejercicio": forms.Select(attrs={"class": SELECT_CLASSES}),
+            "notas": forms.TextInput(attrs={ 
+                "class": INPUT_CLASSES, 
+                "placeholder": "Indicaciones, series, reps, RIR..."
+            }),
+        }
+        labels = {"notas": "Notas / Series"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['ejercicio'].empty_label = "Selecciona un ejercicio"
+
+# ========================================================================
+# Definición del FormSet
+# ========================================================================
+DetalleEntrenamientoFormSet = inlineformset_factory(
+    Entrenamiento,
+    DetalleEntrenamiento,
+    form=DetalleEntrenamientoForm,
+    extra=0,
+    can_delete=True
+)
+
+# ========================================================================
+# Formulario de Ejercicio
+# ========================================================================
+class EjercicioForm(forms.ModelForm):
+    class Meta:
+        model = Ejercicio
+        fields = ["nombre", "video"]
+        widgets = {
+            "video": forms.URLInput(attrs={"placeholder": "https://..."}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        input_classes = "appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+        self.fields['nombre'].widget.attrs.update({
+            'class': input_classes,
+            'placeholder': 'Ej: Press de Banca'
+        })
+        self.fields['video'].widget.attrs.update({
+            'class': input_classes,
+        })
+
+# ========================================================================
+# Formularios de Series
+# ========================================================================
+
+# ------------------------------------------------------------------------
+# 1. SeriePrescripcionForm
+# ------------------------------------------------------------------------
+class SeriePrescripcionForm(forms.ModelForm):
+    class Meta:
+        model = SerieEjercicio
+        fields = ["numero_serie", "repeticiones_o_rango"] 
+        widgets = {
+            "numero_serie": forms.HiddenInput(), 
+            "repeticiones_o_rango": forms.TextInput(attrs={
+                "placeholder": "Ej: 10 o 8-12",
+                "class": INPUT_CLASSES 
+            }),
+        }
+        labels = {
+            "repeticiones_o_rango": "Repeticiones / Rango *", 
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['numero_serie'].required = False
+
+# ========================================================================
+# Inline FormSet para Prescripción de Series
+# ========================================================================
+SeriePrescripcionInlineFormSet = inlineformset_factory(
+    DetalleEntrenamiento,
+    SerieEjercicio,
+    form=SeriePrescripcionForm,
+    extra=1,
+    can_delete=True,
+)
+
+# ------------------------------------------------------------------------
+# 2. SerieRegistroForm
+# ------------------------------------------------------------------------
+class SerieRegistroForm(forms.ModelForm):
+    class Meta:
+        model = SerieEjercicio
+        fields = [
+            "detalle_entrenamiento",
+            "numero_serie",
+            "peso_real",
+            "repeticiones_reales",
+        ]
+        widgets = {
+            "detalle_entrenamiento": forms.HiddenInput(),
+            "numero_serie": forms.HiddenInput(),
+            "peso_real": forms.NumberInput(attrs={
+                "step": "0.5",
+                "placeholder": "Peso (kg)",
+                "class": "w-full border-gray-300 rounded-md text-sm focus:ring-green-500 focus:border-green-500 text-center"
+            }),
+            "repeticiones_reales": forms.NumberInput(attrs={
+                "placeholder": "Reps",
+                "class": "w-full border-gray-300 rounded-md text-sm focus:ring-green-500 focus:border-green-500 text-center"
+            }),
+        }
+        labels = {
+            "peso_real": "Peso",
+            "repeticiones_reales": "Reps",
+        }
+
+    def clean_peso_real(self):
+        peso = self.cleaned_data.get('peso_real')
+        if peso is None:
+            return peso
+        if not isinstance(peso, Decimal):
+            try:
+                peso = Decimal(str(peso))
+            except:
+                raise ValidationError("El peso debe ser un número válido.")
+        peso = peso.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        INCREMENTO_MINIMO = Decimal('0.25')
+        residuo = peso % INCREMENTO_MINIMO
+        if residuo != Decimal('0') and residuo.to_integral_value(rounding=ROUND_HALF_UP) != Decimal('0'):
+            raise ValidationError(
+                f"El peso debe ser un múltiplo de {INCREMENTO_MINIMO} (ej. 17.0, 17.25, 17.5, 17.75, 18.0). "
+                "Verifica tus incrementos de peso."
+            )
+        if peso == peso.to_integral_value():
+            return peso.to_integral_value()
+        return peso
+
+# ========================================================================
+# Creación de FormSets para gestión masiva de series
+# ========================================================================
+SerieFormSet = modelformset_factory(
+    SerieEjercicio,
+    form=SeriePrescripcionForm,
+    extra=0,
+    can_delete=True
+)
+
+SerieRegistroFormSet = modelformset_factory(
+    SerieEjercicio,
+    form=SerieRegistroForm,
+    extra=0,
+    can_delete=False
+)
+
+# ========================================================================
+# Formulario de Login Inteligente (Username o Email)
+# ========================================================================
+class EmailOrUsernameLoginForm(AuthenticationForm):
+    """
+    Formulario de autenticación que permite a los usuarios iniciar sesión
+    usando su Username (email), su Email O su Nombre de Perfil.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # El label ya es correcto por el placeholder del template
+        self.fields['username'].label = "Usuario o Email" 
+
+    def clean(self):
+        # El campo 'username' del formulario contiene lo que el usuario escribió
+        username_or_email_or_nombre = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username_or_email_or_nombre is not None and password:
+            User = get_user_model()
+            # Inicializamos el caché de usuario como None
+            self.user_cache = None
+
+            # ------------------------------------------------------------
+            # INTENTO 1: Autenticar por USERNAME
+            # (En tu app, el username ES el email)
+            # ------------------------------------------------------------
+            self.user_cache = authenticate(
+                self.request, 
+                username=username_or_email_or_nombre, 
+                password=password
+            )
+            
+            # ------------------------------------------------------------
+            # INTENTO 2: Autenticar por EMAIL (Fallback)
+            # ------------------------------------------------------------
+            if self.user_cache is None:
+                try:
+                    # Buscamos al usuario por su email
+                    user_by_email = User.objects.get(email__iexact=username_or_email_or_nombre)
+                    # Si lo encontramos, autenticamos usando su username real
+                    self.user_cache = authenticate(
+                        self.request, 
+                        username=user_by_email.username, 
+                        password=password
+                    )
+                except User.DoesNotExist:
+                    pass # No era un email, pasamos al siguiente intento
+
+            # ------------------------------------------------------------
+            # ¡NUEVO! INTENTO 3: Autenticar por NOMBRE DE PERFIL
+            # ------------------------------------------------------------
+            if self.user_cache is None:
+                try:
+                    # Buscamos el *perfil* por el campo 'nombre'
+                    perfil = PerfilUsuario.objects.get(nombre__iexact=username_or_email_or_nombre)
+                    
+                    # ¡Encontrado! Autenticamos usando el 'username' del usuario de ese perfil
+                    self.user_cache = authenticate(
+                        self.request,
+                        username=perfil.user.username, 
+                        password=password
+                    )
+                except PerfilUsuario.DoesNotExist:
+                    pass # No era un nombre, se acabaron los intentos
+                except PerfilUsuario.MultipleObjectsReturned:
+                    # Si dos usuarios se llaman "Juan Pérez", no podemos adivinar.
+                    # El login fallará, lo cual es el comportamiento de seguridad correcto.
+                    pass
+
+            # ------------------------------------------------------------
+            # Comprobaciones finales de Django
+            # ------------------------------------------------------------
+            if self.user_cache is None:
+                # Si los 3 intentos fallaron, lanzamos el error
+                raise self.get_invalid_login_error()
+            else:
+                # Si alguno funcionó, confirmamos el login
+                self.confirm_login_allowed(self.user_cache)
+
+        return self.cleaned_data
+    
+
+
+class MyPasswordResetForm(PasswordResetForm):
+    email = forms.EmailField(
+        label="Correo electrónico",
+        max_length=254,
+        widget=forms.EmailInput(attrs={
+            'class': 'appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm',
+            'placeholder': 'Correo electrónico',
+            'id': 'id_email', # Asegura que el <label> funcione
+            'autocomplete': 'email'
+        })
+    )
+
+class MySetPasswordForm(SetPasswordForm):
+    
+    # Sobreescribimos el campo new_password1
+    new_password1 = forms.CharField(
+        label="Nueva contraseña",
+        widget=forms.PasswordInput(attrs={
+            'class': 'appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm',
+            'placeholder': 'Nueva contraseña',
+            'id': 'id_new_password1',
+            'autocomplete': 'new-password'
+        })
+    )
+    
+    # Sobreescribimos el campo new_password2
+    new_password2 = forms.CharField(
+        label="Confirmar nueva contraseña",
+        widget=forms.PasswordInput(attrs={
+            'class': 'appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm',
+            'placeholder': 'Confirmar nueva contraseña',
+            'id': 'id_new_password2',
+            'autocomplete': 'new-password'
+        })
+    )

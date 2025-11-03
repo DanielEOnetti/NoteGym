@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - GymNotebook{% endblock %}
+
+{% block content %}
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
+            ¡Hola, {{ perfil.nombre|default:request.user.username }}!
+        </h1>
+        <p class="mt-1 text-lg text-gray-500">
+             <span class="font-semibold text-primary capitalize">{{ tipo_usuario|default:"No definido" }}</span>
+        </p>
+    </div>
+
+    <div class="space-y-8">
+
+        {% if tipo_usuario == 'entrenador' %}
+            
+            <div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    
+                    <a href="{% url 'entrenamiento_crear' %}" class="block bg-[#252959] p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-50 text-primary">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-white mt-4 mb-1">Crear Nueva Rutina</h3> {# Ajustado color de texto #}
+                        <p class="text-sm text-gray-200">Diseña y asigna un nuevo plan de entrenamiento.</p> {# Ajustado color de texto #}
+                    </a>
+
+                    <a href="{% url 'ejercicio_crear' %}" class="block bg-[#252959] p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-green-50 text-green-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-white mt-4 mb-1">Añadir Ejercicios</h3> {# Ajustado color de texto #}
+                        <p class="text-sm text-gray-200">Amplía el catálogo de ejercicios disponibles.</p> {# Ajustado color de texto #}
+                    </a>
+
+                    <a href="{% url 'lista_atletas' %}" class="block bg-[#252959] p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-2.37M12 15H3v-2a3 3 0 015.356-2.37M8 9a3 3 0 100-6 3 3 0 000 6zm10 0a3 3 0 100-6 3 3 0 000 6zm-6 0a3 3 0 100-6 3 3 0 000 6z"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-white mt-4 mb-1">Gestionar Atletas</h3> {# Ajustado color de texto #}
+                        <p class="text-sm text-gray-200">Revisa el progreso de tus atletas.</p> {# Ajustado color de texto #}
+                    </a>
+                    
+                    
+                </div>
+            </div>
+            
+            <div class="bg-[#252959] shadow-xl rounded-xl overflow-hidden">
+    <div class="p-6 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-white">Mis Plantillas de Entrenamiento</h2> {# Ajustado color de texto #}
+    </div>
+    
+    {% if entrenamientos_creados %}
+    <ul role="list" class="divide-y divide-gray-700"> {# Ajustado color del divisor para contraste #}
+        {% for entreno in entrenamientos_creados %}
+        <li class="py-4 px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-gray-800 transition duration-150"> {# Ajustado hover bg #}
+            <div class="flex flex-col mb-2 sm:mb-0">
+                <span class="text-lg font-medium text-white">{{ entreno.nombre }}</span> {# Ajustado color de texto #}
+                <p class="text-sm text-gray-300"> {# Ajustado color de texto #}
+                    Asignado a: <span class="font-semibold text-#B0B0B0">{{ entreno.atleta.nombre }}</span> 
+                </p>
+            </div>
+            <div class="space-x-2 flex-shrink-0 flex items-center">
+                <a href="{% url 'entrenamiento_detail' pk=entreno.pk %}" class="font-medium text-primary hover:text-indigo-400 transition"> {# Ajustado hover color #}
+                    Ver Detalle
+                </a>
+                <a href="{% url 'entrenamiento_update' pk=entreno.pk %}" class="inline-flex items-center px-3 py-1 border border-gray-600 text-sm font-medium rounded-md text-gray-200 bg-transparent hover:bg-gray-700 transition"> {# Ajustado border, text y bg #}
+                    Editar
+                </a>
+                
+                <form method="post" action="{% url 'entrenamiento_delete' pk=entreno.pk %}" class="inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este entrenamiento? Esta acción no se puede deshacer.');">
+                    {% csrf_token %}
+                    <button type="submit" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-red-300 bg-red-800 hover:bg-red-700 transition"> {# Ajustado text y bg #}
+                        Eliminar
+                    </button>
+                </form>
+                
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+        {% endif %}
+</div>
+
+        {% elif tipo_usuario == 'atleta' %}
+            
+            <div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <a href="{% url 'mis_rutinas' %}" class="block bg-[#252959] p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-green-50 text-green-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5h6m-6 9h4"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-white mt-4 mb-1">Mis Rutinas Asignadas</h3> {# Ajustado color de texto #}
+                        <p class="text-sm text-gray-200">Revisa todas las rutinas que tu entrenador te ha enviado.</p> {# Ajustado color de texto #}
+                    </a>
+
+                    <a href="{% url 'marcas_personales' %}" class="block bg-[#252959] p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-50 text-primary">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-white mt-4 mb-1">Mis Marcas Personales</h3> {# Ajustado color de texto #}
+                        <p class="text-sm text-gray-200">Revisa tu historial de levantamientos y progreso.</p> {# Ajustado color de texto #}
+                    </a>
+                </div>
+            </div>
+
+        {% else %}
+            {# El mensaje de error lo mantengo con los colores originales de Tailwind para que destaque como advertencia #}
+            <div class="rounded-md bg-yellow-50 p-4 shadow">
+                <div class="flex">
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Error de Rol</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <p>Tu rol de usuario no está definido correctamente. Contacta al administrador.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+
+{% endblock content %}

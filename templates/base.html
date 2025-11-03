@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-[#D7D7D7]"> 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>{% block title %}NoteGym{% endblock %}</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#252959', // Tu color de marca (indigo-600)
+                        'secondary': '#1f2937', 
+                    },
+                }
+            }
+        }
+    </script>
+    
+    {% block extra_css %}{% endblock %} 
+
+</head>
+<body class="h-full antialiased font-sans">
+    
+    {% block main_wrapper %}
+
+        <header class="bg-[#252959] shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-white tracking-tight"> 
+     <a href="{% url 'home' %}">Gym<span class="text-[#B0B0B0]">Note</span></a>
+ </h1>
+                <nav class="space-x-4">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'dashboard' %}" class="text-gray-300 hover:text-white transition">Dashboard</a> {# Ajustado color de texto para contraste #}
+                        <a href="{% url 'logout' %}" class="text-red-300 hover:text-red-400 transition">Salir</a> {# Ajustado color de texto para contraste #}
+                    {% else %}
+                        <a href="{% url 'login' %}" class="text-gray-300 hover:text-white transition">Acceder</a> {# Ajustado color de texto para contraste #}
+                        <a href="{% url 'registro' %}" class="bg-primary text-white py-1.5 px-4 rounded-md hover:bg-indigo-700 transition">Regístrate</a>
+                    {% endif %}
+                </nav>
+            </div>
+        </header>
+
+        <main class="py-10">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                {% block content %}
+                
+                {% endblock %}
+            </div>
+        </main>
+    
+    {% endblock main_wrapper %}
+
+    {% if debug %}
+        <script src="http://localhost:8000/__reload__/reload.js"></script>
+    {% endif %}
+
+    {% block extra_js %}
+    {% endblock %}
+</body>
+</html>

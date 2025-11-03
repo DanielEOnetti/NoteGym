@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block title %}
+    Registrar: {{ entrenamiento.nombre }} - GymNotebook
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+    {# ========== ENCABEZADO (Rediseñado) ========== #}
+    <header class="mb-8">
+        <nav class="text-sm mb-3 text-gray-500">
+            <a href="{% url 'dashboard' %}" class="hover:text-primary">Dashboard</a> &gt; 
+            <a href="{% url 'mis_rutinas' %}" class="hover:text-primary">Mis Rutinas</a> &gt;
+            <span class="font-semibold text-gray-700">{{ entrenamiento.nombre }}</span>
+        </nav>
+        
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-extrabold text-gray-900 mb-1">
+                    📝 {{ entrenamiento.nombre }}
+                </h1>
+                <p class="text-lg text-gray-500">
+                    Asignado por <strong>{{ entrenamiento.entrenador.nombre }}</strong> el {{ entrenamiento.created_at|date:"d M Y" }}
+                </p>
+            </div>
+        </div>
+        
+        {% if entrenamiento.notas %}
+            <div class="mt-4 p-4 bg-indigo-50 border-l-4 border-indigo-200 text-indigo-800 rounded-md text-sm">
+            {{ entrenamiento.notas }}
+            </div>
+        {% endif %}
+    </header>
+
+    {# ========== FORMULARIO DE REGISTRO DE SESIÓN ========== #}
+    <form method="post" id="registro-entrenamiento-form">
+        {% csrf_token %}
+
+        {{ series_formset.management_form }}
+        
+        {% if series_formset.non_form_errors %}
+            <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+                <span class="font-medium">Error de formulario:</span>
+                {% for error in series_formset.non_form_errors %}
+                    <p class="mt-1">{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="space-y-6">
+            {% for detalle in detalles %}
+                {% with ejercicios_formset_list=series_formset.forms|dict_by_detalle_id:detalle.pk %}
+                
+                <div id="ejercicio-card-{{ detalle.pk }}" class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
+                    
+                    {# Encabezado del ejercicio (Accordion trigger) #}
+                    <div class="flex items-center justify-between p-5 border-b border-gray-100 cursor-pointer bg-gray-50 hover:bg-gray-100 transition" 
+                         data-accordion-target="#collapse-{{ detalle.pk }}" aria-expanded="true">
+                        
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <span class="w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full text-sm mr-3 font-semibold">{{ forloop.counter }}</span>
+                            {{ detalle.ejercicio.nombre }}
+                        </h2>
+                        
+                        <div class="flex items-center space-x-4">
+                            {% if detalle.ejercicio.video %}
+                                <a href="{{ detalle.ejercicio.video }}" target="_blank" class="text-primary hover:text-indigo-800 transition" title="Ver Video">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18V6a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2z"></path></svg>
+                                </a>
+                            {% endif %}
+                            
+                        </div>
+                    </div>
+
+                    <div id="collapse-{{ detalle.pk }}" class="p-5 border-t border-gray-100 accordion-content">
+                        
+                        {# Prescripción del Entrenador (Estilo unificado) #}
+                        {% if detalle.notas or detalle.peso_recomendado %}
+                        <div class="mb-4 text-sm text-gray-700 p-3 bg-indigo-50 rounded-lg">
+                            
+                            {% if detalle.notas %}
+                             <span class="font-medium">{{ detalle.notas }}</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {# Tabla de Registro de Series #}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Serie</th>
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Objetivo</th>
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Peso</th>
+                                        <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repeticiones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for form in ejercicios_formset_list %}
+                                        <tr class="hover:bg-indigo-50 transition duration-100">
+                                            {{ form.id.as_hidden }}
+                                            {{ form.detalle_entrenamiento.as_hidden }}
+                                            {{ form.numero_serie.as_hidden }}
+                                            {{ form.DELETE.as_hidden }}
+                                            {{ form.entrenamiento.as_hidden }}
+
+                                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                                                <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-gray-200 text-gray-700 font-bold text-xs">
+                                                    {{ form.instance.numero_serie }}
+                                                </span>
+                                            </td>
+                                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700 font-semibold">
+                                                {{ form.instance.repeticiones_o_rango }}
+                                            </td>
+                                            
+                                            <td class="px-3 py-1.5 whitespace-nowrap">
+    {{ form.peso_real.errors }}
+    {{ form.peso_real }}
+</td>
+                                            
+                                            <td class="px-3 py-1.5 whitespace-nowrap">
+    {{ form.repeticiones_reales.errors }}
+    {{ form.repeticiones_reales }}
+</td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="px-3 py-4 text-center text-sm text-gray-500">
+                                                El entrenador no ha prescrito series para este ejercicio.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+            {% empty %}
+                <div class="p-6 text-center text-gray-600 bg-white rounded-xl shadow-lg">
+                    <p class="text-xl font-semibold">Rutina Vacía 😔</p>
+                    <p class="mt-2">Este entrenamiento no tiene ejercicios asignados aún. Contacta a tu entrenador.</p>
+                </div>
+            {% endfor %}
+        </div>
+        
+        {# ========== BOTÓN GUARDAR (Estilo unificado) ========== #}
+        <div class="mt-10 sticky bottom-0 bg-white p-4 shadow-2xl rounded-t-lg z-10 border-t border-gray-200">
+            <button type="submit" class="w-full justify-center inline-flex items-center px-6 py-3 border border-transparent text-lg font-medium rounded-md shadow-sm text-white bg-primary hover:bg-indigo-700 focus:ring-primary focus:outline-none focus:ring-2 focus:ring-offset-2 transition">
+                <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-5.618 3.047M12 14a2 2 0 100-4 2 2 0 000 4z"></path></svg>
+                Guardar Registro de Sesión Completo
+            </button>
+        </div>
+        
+    </form>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-accordion-target]').forEach(trigger => {
+        const targetId = trigger.getAttribute('data-accordion-target');
+        const target = document.querySelector(targetId);
+        const icon = trigger.querySelector('.rotate-icon');
+
+        if (!target) return;
+
+        // Estado inicial (abierto por defecto)
+        if (trigger.getAttribute('aria-expanded') === 'true') {
+            target.style.maxHeight = target.scrollHeight + 'px';
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        } else {
+            target.style.maxHeight = '0px';
+            if (icon) icon.style.transform = 'rotate(-180deg)';
+        }
+
+        trigger.addEventListener('click', () => {
+            const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+
+            if (isExpanded) {
+                // Contraer
+                target.style.maxHeight = '0px';
+                if (icon) icon.style.transform = 'rotate(-180deg)';
+                trigger.setAttribute('aria-expanded', 'false');
+            } else {
+                // Expandir
+                target.style.maxHeight = target.scrollHeight + 'px';
+                if (icon) icon.style.transform = 'rotate(0deg)';
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+        });
+        
+        // Ajustar altura si el contenido cambia
+        target.addEventListener('transitionend', () => {
+            if (trigger.getAttribute('aria-expanded') === 'true') {
+                target.style.maxHeight = 'none'; // Permitir que el contenido se expanda
+            }
+        });
+
+        // Reajustar cuando se colapsa desde 'none'
+        trigger.addEventListener('click', () => {
+             if (trigger.getAttribute('aria-expanded') === 'true' && target.style.maxHeight === 'none') {
+                 target.style.maxHeight = target.scrollHeight + 'px';
+             }
+        });
+    });
+});
+</script>
+{% endblock extra_js %}

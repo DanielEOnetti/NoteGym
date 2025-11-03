@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Atletas - GymNotebook{% endblock %}
+
+{% block content %}
+
+    <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight mb-6">
+        Gestionar Mis Atletas
+    </h1>
+
+    <div class="bg-[#252959] rounded-xl shadow-lg overflow-hidden">
+        
+        <ul role="list" class="divide-y divide-gray-700">
+
+            {% for atleta in atletas %}
+                
+                <a href="{% url 'atleta_record_detail' pk=atleta.pk %}" 
+                   class="block py-4 px-6 hover:bg-gray-800 transition-colors duration-150 ease-in-out">
+                    
+                    <li class="flex justify-between items-center">
+                        <span class="text-lg font-semibold text-white">
+                            {{ atleta.nombre|default:atleta.user.username }}
+                        </span>
+                        
+                        <span class="text-blue-400 text-xl font-bold">
+                            Ver Récords &rarr;
+                        </span>
+                    </li>
+
+                </a> {% empty %}
+                <li class="py-4 px-6">
+                    <p class="text-center text-gray-200">Aún no tienes atletas asignados.</p>
+                </li>
+            {% endfor %}
+
+        </ul>
+    </div>
+
+{% endblock content %}

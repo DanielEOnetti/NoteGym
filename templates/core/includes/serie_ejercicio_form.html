@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Configurar Series - {{ entrenamiento.nombre }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    
+    <header class="mb-8">
+        <nav class="text-sm mb-3 text-gray-500">
+            <a href="{% url 'dashboard' %}" class="hover:text-primary">Dashboard</a>
+            <span class="mx-2">/</span>
+            <a href="{% url 'entrenamiento_update' pk=entrenamiento.pk %}" class="hover:text-primary">Editar Entrenamiento</a> 
+            <span class="mx-2">/</span>
+            <span class="text-gray-700 font-medium">Configurar Series</span>
+        </nav>
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
+            ⚙️ Configurar Series
+        </h1>
+        
+    </header>
+
+    <form method="post" id="series-form-container">
+        {% csrf_token %}
+        
+        {% for _, serie_formset in detalles_with_formsets %}
+            {% if serie_formset.non_form_errors %}
+            <div class="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                 <p class="font-medium">Error en las series para {{ serie_formset.instance.ejercicio.nombre }}:</p>
+                 {{ serie_formset.non_form_errors }}
+            </div>
+            {% endif %}
+        {% endfor %}
+
+        <div class="space-y-8">
+            
+            {% for detalle, serie_formset in detalles_with_formsets %}
+            
+            <div class="bg-white shadow-xl rounded-xl border border-gray-200 overflow-hidden">
+                
+                <div class="p-6 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-xl font-semibold text-gray-800">
+                        {{ forloop.counter }}. {{ detalle.ejercicio.nombre }}
+                    </h2>
+                    {% if detalle.notas %}
+                    <p class="mt-1 text-sm text-gray-600 italic">
+                        <span class="font-medium">Notas:</span> {{ detalle.notas }}
+                    </p>
+                    {% endif %}
+                </div>
+                
+                <div class="p-6">
+                    {{ serie_formset.management_form }} 
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="border-b border-gray-200">
+                                <tr>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-16">Serie</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reps/Rango *</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-20"></th>
+                                </tr>
+                            </thead>
+                            
+                            <tbody class="series-tbody" data-formset-prefix="{{ serie_formset.prefix }}">
+                                {% for form in serie_formset %}
+                                    {% include "core/includes/serie_row.html" with form=form %}
+                                {% empty %}
+                                    {# Mensaje opcional si el formset está vacío #}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <button type="button" 
+                            class="add-serie-button mt-4 w-full flex items-center justify-center px-4 py-2 border border-dashed border-primary text-sm font-medium rounded-md text-primary bg-indigo-50 hover:bg-indigo-100 transition"
+                            data-formset-prefix="{{ serie_formset.prefix }}">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        Añadir Serie
+                    </button>
+                </div>
+                
+            </div>
+            {% empty %}
+             <div class="p-6 text-center text-gray-600 bg-white rounded-xl shadow-lg border">
+                 <p class="text-xl font-semibold">No hay ejercicios 😔</p>
+                 <p class="mt-2">Este entrenamiento no tiene ejercicios asignados. Vuelve a editarlo para añadirlos.</p>
+                 <a href="{% url 'entrenamiento_update' pk=entrenamiento.pk %}" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-indigo-700 transition">
+                     Volver a Editar
+                 </a>
+             </div>
+            {% endfor %}
+            
+        </div>
+        
+        <div class="pt-6 mt-8 border-t border-gray-200 flex flex-col sm:flex-row-reverse gap-3">
+            <button type="submit"
+                    class="w-full inline-flex justify-center py-3 px-4 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition">
+                Guardar Configuración de Series
+            </button>
+            <a href="{% url 'entrenamiento_update' pk=entrenamiento.pk %}" 
+                class="w-full inline-flex justify-center py-3 px-4 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition">
+                Volver a Editar Entrenamiento
+            </a>
+        </div>
+    </form>
+</div>
+
+<template id="empty-serie-form-template">
+    {% if detalles_with_formsets %} {# Asegura que haya al menos un formset para obtener empty_form #}
+        {% with form=detalles_with_formsets.0.1.empty_form %}
+            {% include "core/includes/serie_row.html" with form=form %}
+        {% endwith %}
+    {% endif %}
+</template>
+
+{% endblock content %}
+
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    function renumerarSeries(tbody) {
+        const filasVisibles = tbody.querySelectorAll('.serie-item:not([style*="display: none"])');
+        filasVisibles.forEach((fila, index) => {
+            const numeroSpan = fila.querySelector('.serie-number span');
+            if (numeroSpan) {
+                numeroSpan.textContent = index + 1;
+            }
+            const numeroInput = fila.querySelector('input[name$="-numero_serie"]');
+            if (numeroInput) {
+                numeroInput.value = index + 1;
+            }
+        });
+    }
+
+    function setupDeleteButtons(scope) {
+        scope.querySelectorAll('.remove-serie-button').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            newBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const fila = newBtn.closest('.serie-item');
+                const deleteCheckbox = fila.querySelector('input[name$="-DELETE"]');
+                const tbody = fila.closest('.series-tbody');
+                
+                if (confirm('¿Estás seguro de que quieres eliminar esta serie?')) {
+                    if (deleteCheckbox) {
+                        deleteCheckbox.checked = true;
+                        fila.style.display = 'none';
+                    } else {
+                        fila.remove();
+                    }
+                    renumerarSeries(tbody);
+                }
+            });
+        });
+    }
+
+    document.querySelectorAll('.add-serie-button').forEach(addButton => {
+        const prefix = addButton.dataset.formsetPrefix;
+        const tbody = document.querySelector(`.series-tbody[data-formset-prefix="${prefix}"]`);
+        const totalFormsInput = document.querySelector(`input[name="${prefix}-TOTAL_FORMS"]`);
+        const emptyFormTemplate = document.getElementById('empty-serie-form-template'); // Referencia al template
+
+        // Asegúrate de que los elementos existen antes de añadir el listener
+        if (!tbody || !totalFormsInput || !emptyFormTemplate) {
+            console.error(`Error: No se encontraron elementos del formset para el prefijo '${prefix}'`);
+            return; 
+        }
+        
+        addButton.addEventListener('click', function() {
+            const index = parseInt(totalFormsInput.value);
+            // Clona el contenido del template
+            const templateContent = emptyFormTemplate.content.cloneNode(true);
+            // Obtiene el elemento <tr> clonado
+            const newRow = templateContent.querySelector('.serie-item'); 
+            
+            if (!newRow) {
+                 console.error("Error: El template 'empty-serie-form-template' no contiene un elemento con clase '.serie-item'");
+                 return;
+            }
+
+            // Reemplazar '__prefix__' en los atributos name e id de los inputs dentro de la nueva fila
+            newRow.querySelectorAll('input, select, textarea').forEach(input => {
+                input.name = input.name.replace(/__prefix__/g, index);
+                input.id = input.id.replace(/__prefix__/g, index);
+            });
+            
+            tbody.appendChild(newRow);
+            totalFormsInput.value = index + 1;
+            
+            setupDeleteButtons(newRow);
+            renumerarSeries(tbody);
+        });
+    });
+
+    document.querySelectorAll('.series-tbody').forEach(tbody => {
+        setupDeleteButtons(tbody);
+        renumerarSeries(tbody);
+    });
+});
+</script>
+{% endblock extra_js %}

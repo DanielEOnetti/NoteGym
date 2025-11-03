@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% load static %} {% block title %}Marcas Personales - NoteGym{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+
+    {# 1. Encabezado de la Página (Estilo unificado) #}
+    <header class="mb-8">
+        <nav class="text-sm mb-3 text-gray-500">
+            <a href="{% url 'dashboard' %}" class="hover:text-primary">Dashboard</a>
+            <span class="mx-2">/</span>
+            <span class="text-gray-700 font-medium">Marcas Personales</span>
+        </nav>
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center">
+            🏆 Mis Marcas Personales 
+        </h1>
+    </header>
+
+    {% if marcas %}
+    <div class="space-y-6">
+        {% for marca in marcas %}
+        <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
+            
+            {# CABECERA COLAPSABLE #}
+            <button 
+                data-accordion-trigger="ejercicio-{{ marca.ejercicio.id }}"
+                class="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition"
+            >
+                <div class="flex items-center gap-4 flex-1">
+                    <svg class="w-6 h-6 text-primary transform transition-transform duration-200 rotate-icon" 
+                         id="icon-ejercicio-{{ marca.ejercicio.id }}"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    
+                    <div class="flex-1">
+                        <h2 class="text-2xl font-bold text-primary">
+                            {{ marca.ejercicio.nombre }}
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-1">
+                            {{ marca.records_por_reps|length }} récord{% if marca.records_por_reps|length != 1 %}s{% endif %} registrado{% if marca.records_por_reps|length != 1 %}s{% endif %}
+                        </p>
+                    </div>
+                    
+                    {# Resumen de récords (Estilo unificado) #}
+                    <div class="hidden md:flex gap-6 mr-4">
+                        {% if marca.record_max_peso_1rm %}
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">1RM</p>
+                            <p class="text-lg font-bold text-primary">{{ marca.record_max_peso_1rm.peso|floatformat:"-2" }}kg</p>
+                        </div>
+                        {% endif %}
+                        {% if marca.record_max_peso %}
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">Máx. Peso</p>
+                            <p class="text-lg font-bold text-primary">{{ marca.record_max_peso.peso|floatformat:"-2" }}kg</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if marca.ejercicio.video %}
+                <a href="{{ marca.ejercicio.video }}" 
+                   target="_blank"
+                   onclick="event.stopPropagation()"
+                   class="ml-4 flex items-center text-sm font-medium text-primary hover:text-indigo-700 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18V6a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2z"></path>
+                    </svg>
+                </a>
+                {% endif %}
+            </button>
+            
+            {# CONTENIDO COLAPSABLE (Oculto por defecto) #}
+            <div id="ejercicio-{{ marca.ejercicio.id }}" class="accordion-content hidden">
+                <div class="px-6 pb-6">
+                    <hr class="mb-6">
+                    
+                    {# BLOQUE DE RÉCORDS ABSOLUTOS (Estilo unificado) #}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        
+                        {# Peso Máximo Absoluto #}
+                        <div class="flex-1 p-4 border rounded-lg shadow-sm bg-purple-50 border-purple-200">
+                            <p class="text-xs font-semibold uppercase text-purple-600 mb-1">Peso Máximo Absoluto</p>
+                            {% if marca.record_max_peso %}
+                                <p class="text-3xl font-extrabold text-purple-800 leading-none">
+                                    {{ marca.record_max_peso.peso|floatformat:"-2" }}kg 💪
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {{ marca.record_max_peso.repeticiones }} rep{% if marca.record_max_peso.repeticiones != 1 %}s{% endif %} 
+                                </p>
+                            {% else %}
+                                <p class="text-lg font-bold text-gray-400">N/A</p>
+                            {% endif %}
+                        </div>
+                        
+                        {# Récord de 1RM #}
+                        <div class="flex-1 p-4 border rounded-lg shadow-sm bg-red-50 border-red-200">
+                            <p class="text-xs font-semibold uppercase text-red-600 mb-1">Máximo a 1 Repetición (1RM)</p>
+                            {% if marca.record_max_peso_1rm %}
+                                <p class="text-3xl font-extrabold text-red-800 leading-none">
+                                    {{ marca.record_max_peso_1rm.peso|floatformat:"-2" }}kg 👑
+                                </p>
+                            {% else %}
+                                <p class="text-lg font-bold text-gray-400">N/A</p>
+                                <p class="text-xs text-gray-400 mt-1">No hay registros a 1 repetición.</p>
+                            {% endif %}
+                        </div>
+                        
+                        {# Récord de Repeticiones Máximas #}
+                        <div class="flex-1 p-4 border rounded-lg shadow-sm bg-yellow-50 border-yellow-200">
+                            <p class="text-xs font-semibold uppercase text-yellow-600 mb-1">Máximas Repeticiones</p>
+                            {% if marca.record_max_reps %}
+                                <p class="text-3xl font-extrabold text-yellow-800 leading-none">
+                                    {{ marca.record_max_reps.repeticiones }} reps 🌟
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">Con {{ marca.record_max_reps.peso|floatformat:"-2" }}kg </p>
+                            {% else %}
+                                <p class="text-lg font-bold text-gray-400">N/A</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {# ========================================================== #}
+                    {# === TABLA DE REGISTROS (AQUÍ ESTÁN LAS CORRECCIONES) === #}
+                    {# ========================================================== #}
+                    <div class="overflow-x-auto">
+                        <table class="w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                                        Repeticiones
+                                    </th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                                        Peso Máximo
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for record in marca.records_por_reps %}
+                                <tr class="hover:bg-gray-50">
+                                    
+                                    <td class="px-4 py-3 whitespace-nowrap text-center">
+                                        <span class="text-lg font-bold text-gray-700">
+                                            {{ record.repeticiones }} rep{% if record.repeticiones != 1 %}s{% endif %}
+                                        </span>
+                                        
+                                        {% if marca.record_max_peso_1rm and record.repeticiones == 1 and record.peso == marca.record_max_peso_1rm.peso %}
+                                        <span class="ml-2 text-red-500" title="Récord de 1RM">👑</span>
+                                        {% endif %}
+                                        
+                                        {% if marca.record_max_reps and record.repeticiones == marca.record_max_reps.repeticiones %}
+                                        <span class="ml-2 text-yellow-500" title="Récord de Repeticiones">🌟</span>
+                                        {% endif %}
+                                        
+                                        {% if marca.record_max_peso and record.peso == marca.record_max_peso.peso and record.repeticiones == marca.record_max_peso.repeticiones %}
+                                        <span class="ml-2 text-purple-500" title="Peso Máximo Absoluto">💪</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="px-4 py-3 whitespace-nowrap text-center">
+                                        <span class="text-xl font-bold text-primary">
+                                            {{ record.peso|floatformat:"-2" }} kg
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="px-4 py-3 text-center text-gray-500 italic">
+                                        No hay registros de series completadas con peso para este ejercicio.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        {# Mensaje si no hay marcas (Estilo unificado) #}
+        <div class="text-center py-16 px-6 bg-white shadow-xl rounded-xl border border-gray-200">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002-2v-4a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2m-6 0h.01M6 20h.01M18 20h.01"></path></svg>
+            <h3 class="mt-4 text-xl font-semibold text-gray-900">
+                Aún no tienes marcas personales
+            </h3>
+            <p class="mt-2 text-base text-gray-500">
+                ¡Completa tus entrenamientos y registra tus pesos para ver tus récords aquí!
+            </p> <div class="mt-6">
+                <a href="{% url 'mis_rutinas' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-indigo-700 transition">
+                    Ir a Mis Rutinas
+                </a>
+            </div>
+        </div>
+    {% endif %}
+    
+    <div class="mt-10">
+        <a href="{% url 'dashboard' %}" 
+           class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition duration-150">
+            ← Volver al Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Busca todos los 'triggers' de acordeón
+    document.querySelectorAll('[data-accordion-trigger]').forEach(trigger => {
+        const contentId = trigger.getAttribute('data-accordion-trigger');
+        const content = document.getElementById(contentId);
+        const icon = document.getElementById('icon-' + contentId);
+
+        if (!content) return;
+
+        trigger.addEventListener('click', () => {
+            const isHidden = content.classList.contains('hidden');
+            
+            if (isHidden) {
+                // Abrir
+                content.classList.remove('hidden');
+                if (icon) icon.style.transform = 'rotate(90deg)';
+            } else {
+                // Cerrar
+                content.classList.add('hidden');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            }
+        });
+    });
+});
+</script>
+{% endblock extra_js %}
