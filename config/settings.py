@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # --- Whitenoise (CLAVE CORREGIDA) ---
     # La *aplicación* va aquí
     "whitenoise", 
+    "anymail",
 
     "django.contrib.staticfiles",
     "core",
@@ -160,15 +161,17 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # La solución permanente es usar S3 (Opción 2).
 
 if not DEBUG:
-    # --- Configuración de Producción (Usa Brevo/SMTP) ---
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = env('EMAIL_HOST', default='smtp-relay.brevo.com')
-    EMAIL_PORT = env.int('EMAIL_PORT', default=587)
-    EMAIL_USE_TLS = True  # Brevo usa TLS en el puerto 587
-    EMAIL_HOST_USER = env('EMAIL_HOST_USER')
-    EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-    DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='no-reply@notegym.com')
+    # --- Configuración de Producción (Usa la API de Brevo) ---
+    ANYMAIL = {
+        # El backend de Brevo (usa la API, no SMTP)
+        "SEND_DEFAULTS": {
+            "ESP_EXTRA": {"sender": {"name": "Notegym"}},
+        },
+        "BREVO_API_KEY": env('ANYMAIL_BREVO_API_KEY'),
+    }
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+    DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL') # El email verificado de Brevo
 else:
     # --- Configuración de Desarrollo (Usa la Consola) ---
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'local@notegym.com'
+    DEFAULT_FROM_EMAIL = 'danieleonetti12@gmail.com'
