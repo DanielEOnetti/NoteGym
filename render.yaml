@@ -29,7 +29,7 @@ services:
         value: "3.13.2" # Asegúrate que coincida
 
   # 2. La Base de Datos Postgres
-  - type: psql
+  - type: postgres
     name: notegym-db
     databaseName: notegym # El nombre de la BD interna
     plan: free # 'starter' para producción real
