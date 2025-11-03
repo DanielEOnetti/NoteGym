@@ -17,3 +17,21 @@ python manage.py collectstatic --no-input
 
 # 5. Aplicar migraciones
 python manage.py migrate
+
+# 6. Crear Superusuario (¡NUEVO!)
+# Esto usa las variables de entorno que pusiste en Render
+python manage.py shell -c "
+from django.contrib.auth import get_user_model
+import os
+
+User = get_user_model()
+USERNAME = os.environ.get('DJANGO_SUPERUSER_USERNAME')
+EMAIL = os.environ.get('DJANGO_SUPERUSER_EMAIL')
+PASSWORD = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
+
+if not User.objects.filter(username=USERNAME).exists():
+    print(f'Creando superusuario {USERNAME}')
+    User.objects.create_superuser(USERNAME, EMAIL, PASSWORD)
+else:
+    print(f'Superusuario {USERNAME} ya existe.')
+"
