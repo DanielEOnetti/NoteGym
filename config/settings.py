@@ -121,7 +121,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # ... (tu configuración está bien) ...
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "es"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
