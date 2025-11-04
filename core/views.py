@@ -860,3 +860,21 @@ class ActualizarOrdenEjerciciosView(LoginRequiredMixin, View):
         except Exception as e:
             # Captura de error genérico
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
+        
+
+
+
+
+
+class EjercicioListView(LoginRequiredMixin, ListView):
+    model = Ejercicio
+    template_name = 'core/ejercicios/lista.html'  # La ruta a tu nuevo template
+    context_object_name = 'ejercicios'     # El nombre que usaremos en el template
+    paginate_by = 15                       # Buena práctica para listas largas
+
+
+class EjercicioDeleteView(LoginRequiredMixin, DeleteView):
+    model = Ejercicio
+    
+    # URL a la que redirigir después de borrar con éxito
+    success_url = reverse_lazy('ejercicio_lista')

@@ -2,6 +2,7 @@
 
 # Importaciones principales del framework Django para la construcción de formularios.
 from django import forms
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.forms import inlineformset_factory, modelformset_factory
@@ -44,7 +45,9 @@ INPUT_CLASSES = "appearance-none relative block w-full px-3 py-3 border border-g
 SELECT_CLASSES = INPUT_CLASSES
 TEXTAREA_CLASSES = INPUT_CLASSES + " h-24"
 
+
 class EntrenamientoForm(forms.ModelForm):
+    
     class Meta:
         model = Entrenamiento
         fields = ["atleta", "nombre", "notas"]
@@ -60,9 +63,32 @@ class EntrenamientoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
+        # 1. Extrae el 'user' que pasamos desde la CreateView
+        user = kwargs.pop('user', None) 
+        
         super().__init__(*args, **kwargs)
-        self.fields['atleta'].queryset = PerfilUsuario.objects.filter(tipo='atleta')
+
+        # 2. Comprueba que el usuario está logueado y tiene perfil
+        if user and hasattr(user, 'perfil'):
+            
+            perfil_entrenador = user.perfil 
+            
+            # 3. Filtra el queryset de 'atleta'
+            self.fields['atleta'].queryset = PerfilUsuario.objects.filter(
+                Q(tipo='atleta'), # Condición 1: Debe ser un atleta
+                
+                # Condición 2 (OR): O es mi atleta O no tiene entrenador
+                Q(entrenador=perfil_entrenador) | 
+                Q(entrenador__isnull=True)     
+            
+            ).distinct().order_by('nombre') # .distinct() por si acaso y ordenado
+
+        else:
+            # 4. Fallback: si no hay user, solo muestra atletas
+            # (Útil si un SuperAdmin entra desde /admin)
+            self.fields['atleta'].queryset = PerfilUsuario.objects.filter(
+                tipo='atleta'
+            ).order_by('nombre')
 
 # ========================================================================
 # Formulario de Detalle de Entrenamiento (para el Formset)

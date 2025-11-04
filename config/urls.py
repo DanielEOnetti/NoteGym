@@ -26,7 +26,10 @@ from core.views import (
     EntrenamientoDeleteView,
     ListaAtletasView,
     AtletaRecordDetailView,
-    ActualizarOrdenEjerciciosView
+    ActualizarOrdenEjerciciosView,
+    EjercicioListView,
+    EjercicioDeleteView
+    
 )
 # Importas tu formulario personalizado (¡esto es correcto!)
 from core.forms import EmailOrUsernameLoginForm, MyPasswordResetForm, MySetPasswordForm
@@ -86,6 +89,10 @@ urlpatterns = [
     # Gestión de ejercicios
     # --------------------------------------------------------------------
     path("ejercicios/crear/", EjercicioCreateView.as_view(), name="ejercicio_crear"),
+    path('ejercicios/', EjercicioListView.as_view(), name='ejercicio_lista'),
+    path('ejercicios/<int:pk>/eliminar/', 
+         EjercicioDeleteView.as_view(), 
+         name='ejercicio_delete'),
 
     # --------------------------------------------------------------------
     # Sección del atleta
