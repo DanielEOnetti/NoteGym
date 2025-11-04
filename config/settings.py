@@ -24,7 +24,15 @@ DEBUG = env.bool('DEBUG')
 
 # Render añadirá 'notegym.onrender.com' automáticamente.
 # Añade tu dominio personalizado aquí si lo tienes.
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+# Render te da esta variable de entorno automáticamente
+RENDER_EXTERNAL_HOSTNAME = env.str('RENDER_EXTERNAL_HOSTNAME', default=None)
+
+# Si esa variable existe (es decir, estamos en Render)...
+if RENDER_EXTERNAL_HOSTNAME:
+    # ...la añadimos a la lista.
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
