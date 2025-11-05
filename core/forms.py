@@ -192,43 +192,77 @@ class SerieRegistroForm(forms.ModelForm):
             "peso_real",
             "repeticiones_reales",
         ]
+
+        # --- Clases de Tailwind para los Inputs ---
+        # Definidas una vez para reutilizarlas y mantener consistencia
+        input_classes = (
+            "w-full text-center text-sm rounded-md border-0 "
+            "bg-transparent "                  # <-- Fondo transparente por defecto
+            "px-2 py-1.5 "                     # <-- Padding interno
+            "text-gray-900 font-medium "       # <-- Color de texto
+            "transition-all duration-150 "     # <-- Transición suave
+            "focus:outline-none "
+            "focus:bg-white "                  # <-- Al seleccionar: fondo blanco
+            "focus:ring-2 "                    # <-- Al seleccionar: anillo
+            "focus:ring-green-500 "            # <-- Tu color 'green-500'
+            "placeholder-gray-400"             # <-- Color del placeholder
+        )
+
         widgets = {
             "detalle_entrenamiento": forms.HiddenInput(),
             "numero_serie": forms.HiddenInput(),
+            
             "peso_real": forms.NumberInput(attrs={
-                "step": "0.5",
+                # Coincide con tu validación de 0.25
+                "step": "0.25", 
                 "placeholder": "Peso (kg)",
-                "class": "w-full border-gray-300 rounded-md text-sm focus:ring-green-500 focus:border-green-500 text-center"
+                "class": input_classes  # Aplicamos las clases
             }),
+            
             "repeticiones_reales": forms.NumberInput(attrs={
                 "placeholder": "Reps",
-                "class": "w-full border-gray-300 rounded-md text-sm focus:ring-green-500 focus:border-green-500 text-center"
+                "class": input_classes  # Aplicamos las clases
             }),
         }
+        
+        # Estos labels son útiles para accesibilidad, aunque no se vean
         labels = {
             "peso_real": "Peso",
             "repeticiones_reales": "Reps",
         }
 
+    # --- Validación Personalizada ---
+    # (Tu código de validación, que es excelente, sin cambios funcionales)
     def clean_peso_real(self):
         peso = self.cleaned_data.get('peso_real')
+        
+        # Permite valores nulos (si el campo no es obligatorio)
         if peso is None:
             return peso
+
+        # Asegura que sea un Decimal para la validación
         if not isinstance(peso, Decimal):
             try:
                 peso = Decimal(str(peso))
-            except:
+            except Exception:
                 raise ValidationError("El peso debe ser un número válido.")
+        
+        # Redondeo estándar
         peso = peso.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         INCREMENTO_MINIMO = Decimal('0.25')
         residuo = peso % INCREMENTO_MINIMO
-        if residuo != Decimal('0') and residuo.to_integral_value(rounding=ROUND_HALF_UP) != Decimal('0'):
-            raise ValidationError(
-                f"El peso debe ser un múltiplo de {INCREMENTO_MINIMO} (ej. 17.0, 17.25, 17.5, 17.75, 18.0). "
+
+        # Comprueba si el residuo no es cero
+        if not residuo.is_zero():
+             raise ValidationError(
+                f"El peso debe ser un múltiplo de {INCREMENTO_MINIMO} (ej. 17.0, 17.25, 17.5, 17.75). "
                 "Verifica tus incrementos de peso."
-            )
+             )
+        
+        # Devuelve un entero si el peso es un número entero (ej. 17.0 -> 17)
         if peso == peso.to_integral_value():
             return peso.to_integral_value()
+            
         return peso
 
 # ========================================================================

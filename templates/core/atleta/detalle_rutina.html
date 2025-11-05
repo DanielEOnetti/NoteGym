@@ -115,15 +115,15 @@
                                                 {{ form.instance.repeticiones_o_rango }}
                                             </td>
                                             
-                                            <td class="px-3 py-1.5 whitespace-nowrap">
-    {{ form.peso_real.errors }}
-    {{ form.peso_real }}
-</td>
+                                            <td class="p-0 whitespace-nowrap">
+                                                {{ form.peso_real.errors }}
+                                                {{ form.peso_real }}
+                                            </td>
                                             
-                                            <td class="px-3 py-1.5 whitespace-nowrap">
-    {{ form.repeticiones_reales.errors }}
-    {{ form.repeticiones_reales }}
-</td>
+                                            <td class="p-0 whitespace-nowrap">
+                                                {{ form.repeticiones_reales.errors }}
+                                                {{ form.repeticiones_reales }}
+                                            </td>
                                         </tr>
                                     {% empty %}
                                         <tr>
@@ -148,19 +148,19 @@
         
         {# ========== BOTÓN GUARDAR (Estilo unificado) ========== #}
         <div class="mt-10 sticky bottom-0 p-4 z-10 flex justify-end">
-  
-  <button 
-    type="submit" 
-    class="w-auto justify-center inline-flex items-center px-7 py-3 border border-transparent 
-           text-base font-medium rounded-lg shadow-xl text-white bg-primary 
-           hover:bg-indigo-700 focus:ring-primary focus:outline-none focus:ring-2 
-           focus:ring-offset-2 hover:shadow-2xl hover:-translate-y-1 
-           transition-all duration-300">
-    
-    Guardar
-  </button>
+ 
+          <button 
+            type="submit" 
+            class="w-auto justify-center inline-flex items-center px-7 py-3 border border-transparent 
+                   text-base font-medium rounded-lg shadow-xl text-white bg-primary 
+                   hover:bg-indigo-700 focus:ring-primary focus:outline-none focus:ring-2 
+                   focus:ring-offset-2 hover:shadow-2xl hover:-translate-y-1 
+                   transition-all duration-300">
+            
+            Guardar
+          </button>
 
-</div>
+        </div>
         
     </form>
 </div>
