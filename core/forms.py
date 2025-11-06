@@ -440,25 +440,19 @@ class CustomPasswordResetForm(PasswordResetForm):
         # 2. Renderiza el cuerpo de texto (como lo hace Django)
         body = loader.render_to_string(email_template_name, context)
 
-        # 3. **¡Clave! Construimos la URL de recuperación manualmente**
-        # Brevo no puede usar la etiqueta {% url %} de Django,
-        # así que creamos la URL aquí y la pasamos en el contexto.
-        
-        # OJO: Django 5+ usa 'password_reset_confirm'
-        # Si usas una versión más antigua, el 'name' puede variar.
+        # 3. Construimos la URL de recuperación manualmente
         try:
             url_path = reverse('password_reset_confirm', kwargs={'uidb64': context['uid'], 'token': context['token']})
         except Exception:
-            # Fallback por si el nombre de la ruta es diferente (común en apps antiguas)
             url_path = f"/reset/{context['uid']}/{context['token']}/"
 
         # Añadimos la URL completa al contexto que enviaremos a Brevo
         context['recovery_url'] = f"{context['protocol']}://{context['domain']}{url_path}"
 
-        # 4. Crea el email (¡AHORA SÍ con contenido!)
+        # 4. Crea el email
         msg = EmailMultiAlternatives(
-            subject,  # Asunto renderizado
-            body,     # Cuerpo de texto (servirá como fallback)
+            subject,    # Asunto renderizado
+            body,       # Cuerpo de texto (servirá como fallback)
             from_email, 
             [to_email]
         )
@@ -468,9 +462,32 @@ class CustomPasswordResetForm(PasswordResetForm):
         # 5a. Asigna el ID de la plantilla de Brevo.
         msg.template_id = self.BREVO_TEMPLATE_ID
         
-        # 5b. Pasa TODO el contexto (incluyendo nuestra 'recovery_url')
-        # a la plantilla de Brevo.
-        msg.merge_global_data = context 
+        # 5b. ¡SOLUCIÓN! No pases el 'context' completo.
+        # El objeto 'user' no es serializable (no es JSON).
+        # Creamos un diccionario 'limpio' solo con los datos que Brevo necesita.
+        
+        # Obtenemos el objeto User que causa el problema
+        user = context.get('user') 
+
+        # Creamos el diccionario de datos LIMPIO
+        brevo_data = {
+            # Los datos simples que SÍ queremos pasar:
+            "recovery_url": context.get('recovery_url'),
+            "uid": context.get('uid'),
+            "token": context.get('token'),
+            "domain": context.get('domain'),
+            "site_name": context.get('site_name'),
+            
+            # ¡Extraemos los datos 'string' del 'user' que sí son serializables!
+            # (Añade aquí cualquier otro campo que tu plantilla necesite)
+            "first_name": getattr(user, 'first_name', ''), # Usar getattr es más seguro
+            "last_name": getattr(user, 'last_name', ''),
+            "email": getattr(user, 'email', ''),
+            # "username": getattr(user, 'username', ''), # Si lo necesitas
+        }
+        
+        # 5c. Pasa el diccionario LIMPIO (solo strings) a Brevo
+        msg.merge_global_data = brevo_data
 
         # 6. Envía el mensaje.
         try:
