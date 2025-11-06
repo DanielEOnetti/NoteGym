@@ -446,7 +446,6 @@ class CustomPasswordResetForm(PasswordResetForm):
         except Exception:
             url_path = f"/reset/{context['uid']}/{context['token']}/"
 
-        # Añadimos la URL completa al contexto que enviaremos a Brevo
         context['recovery_url'] = f"{context['protocol']}://{context['domain']}{url_path}"
 
         # 4. Crea el email
@@ -462,28 +461,34 @@ class CustomPasswordResetForm(PasswordResetForm):
         # 5a. Asigna el ID de la plantilla de Brevo.
         msg.template_id = self.BREVO_TEMPLATE_ID
         
-        # 5b. ¡SOLUCIÓN! No pases el 'context' completo.
-        # El objeto 'user' no es serializable (no es JSON).
-        # Creamos un diccionario 'limpio' solo con los datos que Brevo necesita.
-        
-        # Obtenemos el objeto User que causa el problema
+        # 5b. ¡AQUÍ ESTÁ LA SOLUCIÓN 1!
+        # Obtenemos el objeto User
         user = context.get('user') 
+
+        # Hacemos la consulta del nombre MÁS SEGURA
+        try:
+             # Accedemos al perfil relacionado y cogemos el campo 'nombre'
+             nombre_usuario = user.perfil.nombre
+             # Si el nombre está en la BD pero es una cadena vacía ""
+             if not nombre_usuario:
+                 nombre_usuario = 'usuario' # Usamos el default
+        except Exception:
+             # Si user.perfil no existe o falla cualquier cosa, usamos el default
+             nombre_usuario = 'usuario'
 
         # Creamos el diccionario de datos LIMPIO
         brevo_data = {
-            # Los datos simples que SÍ queremos pasar:
             "recovery_url": context.get('recovery_url'),
             "uid": context.get('uid'),
             "token": context.get('token'),
             "domain": context.get('domain'),
             "site_name": context.get('site_name'),
             
-            # ¡Extraemos los datos 'string' del 'user' que sí son serializables!
-            # (Añade aquí cualquier otro campo que tu plantilla necesite)
-            "first_name": getattr(user, 'first_name', ''), # Usar getattr es más seguro
-            "last_name": getattr(user, 'last_name', ''),
-            "email": getattr(user, 'email', ''),
-            # "username": getattr(user, 'username', ''), # Si lo necesitas
+            # Usamos la variable segura que acabamos de crear
+            "first_name": nombre_usuario, 
+            
+            # Usamos el email del objeto User, que es el correcto para el login
+            "email": getattr(user, 'email', ''), 
         }
         
         # 5c. Pasa el diccionario LIMPIO (solo strings) a Brevo
