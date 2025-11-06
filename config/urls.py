@@ -112,45 +112,37 @@ urlpatterns = [
         name="actualizar_orden_ejercicios"
     ),
 
-    # 1. Formulario para solicitar el email (¡CORREGIDO!)
+ # 1. Formulario para solicitar el email (USA CustomPasswordResetForm con Brevo ID)
     path('password_reset/', 
-         auth_views.PasswordResetView.as_view(
-             template_name='registration/password_reset_form.html',
-             form_class=MyPasswordResetForm  # <-- Ahora sí usará tu formulario
-         ), 
-         name='password_reset'),
+          auth_views.PasswordResetView.as_view(
+              template_name='registration/password_reset_form.html',
+              # 🔑 CLAVE: Usa el formulario que inyecta el ID de Brevo (2)
+              form_class=CustomPasswordResetForm, 
+              # El template de texto sigue siendo obligatorio, aunque Anymail lo ignora a favor del templateId
+              email_template_name='registration/password_reset_email.txt', 
+          ), 
+          name='password_reset'),
 
     # 2. Página mostrada tras enviar el email
     path('password_reset/done/', 
-         auth_views.PasswordResetDoneView.as_view(
-             template_name='registration/password_reset_done.html'
-         ), 
-         name='password_reset_done'),
+          auth_views.PasswordResetDoneView.as_view(
+              template_name='registration/password_reset_done.html'
+          ), 
+          name='password_reset_done'),
 
-    # 3. Formulario para introducir la nueva contraseña (¡CORREGIDO!)
+    # 3. Formulario para introducir la nueva contraseña
     path('reset/<uidb64>/<token>/', 
-         auth_views.PasswordResetConfirmView.as_view(
-             template_name='registration/password_reset_confirm.html',
-             form_class=MySetPasswordForm  # <-- AÑADE ESTA LÍNEA
-         ), 
-         name='password_reset_confirm'),
+          auth_views.PasswordResetConfirmView.as_view(
+              template_name='registration/password_reset_confirm.html',
+              form_class=MySetPasswordForm 
+          ), 
+          name='password_reset_confirm'),
 
     # 4. Página final de confirmación
     path('reset/done/', 
-         auth_views.PasswordResetCompleteView.as_view(
-             template_name='registration/password_reset_complete.html'
-         ), 
-         name='password_reset_complete'),
-    path(
-    'password_reset/',
-    auth_views.PasswordResetView.as_view(
-        # 🔑 Asigna tu formulario personalizado
-        form_class=CustomPasswordResetForm, 
-        # Ya no necesitamos el template de texto de Django si usamos el ID de Brevo
-        
-        # ... otras configuraciones
-    ),
-    name='password_reset'
-),
+          auth_views.PasswordResetCompleteView.as_view(
+              template_name='registration/password_reset_complete.html'
+          ), 
+          name='password_reset_complete'),
 
 ]
