@@ -32,7 +32,7 @@ from core.views import (
     
 )
 # Importas tu formulario personalizado (¡esto es correcto!)
-from core.forms import EmailOrUsernameLoginForm, MyPasswordResetForm, MySetPasswordForm
+from core.forms import EmailOrUsernameLoginForm, MyPasswordResetForm, MySetPasswordForm, CustomPasswordResetForm
 
 # ========================================================================
 # Definición de patrones de URL del proyecto.
@@ -141,5 +141,16 @@ urlpatterns = [
              template_name='registration/password_reset_complete.html'
          ), 
          name='password_reset_complete'),
+    path(
+    'password_reset/',
+    auth_views.PasswordResetView.as_view(
+        # 🔑 Asigna tu formulario personalizado
+        form_class=CustomPasswordResetForm, 
+        # Ya no necesitamos el template de texto de Django si usamos el ID de Brevo
+        
+        # ... otras configuraciones
+    ),
+    name='password_reset'
+),
 
 ]

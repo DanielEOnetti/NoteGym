@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.forms import inlineformset_factory, modelformset_factory
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+from django.core.mail import EmailMultiAlternatives
 
 # Importación de los modelos y clases requeridas en los formularios definidos.
 from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento
@@ -402,3 +403,33 @@ class MySetPasswordForm(SetPasswordForm):
             'autocomplete': 'new-password'
         })
     )
+
+class CustomPasswordResetForm(PasswordResetForm):
+    """
+    Formulario personalizado para inyectar el ID de plantilla de Brevo
+    en el correo de recuperación de contraseña.
+    """
+    
+    # 📌 REEMPLAZA ESTE NÚMERO CON TU ID DE PLANTILLA DE BREVO
+    BREVO_TEMPLATE_ID = 2 
+
+    def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email, html_email_template_name=None):
+        
+        # 1. Crear el objeto EmailMultiAlternatives base
+        msg = EmailMultiAlternatives(
+            self.subject, 
+            self.message, 
+            from_email, 
+            [to_email]
+        )
+        
+        # 2. **AQUÍ ESTÁ LA CLAVE:** Inyectar el ID de Brevo a través de Anymail
+        # 'esp_extra' permite pasar parámetros específicos del proveedor (Brevo/Sendinblue)
+        msg.esp_extra = {
+            'templateId': self.BREVO_TEMPLATE_ID,
+            # También puedes pasar variables de personalización si las necesitas
+            # 'params': {'enlace_recuperacion': context['protocol'] + '://' + context['domain'] + context['url']}
+        }
+
+        # 3. Envía el mensaje. Anymail detectará 'templateId' y lo usará.
+        msg.send()
