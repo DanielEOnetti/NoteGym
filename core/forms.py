@@ -8,6 +8,8 @@ from django.contrib.auth.models import User
 from django.forms import inlineformset_factory, modelformset_factory
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 from django.core.mail import EmailMultiAlternatives
+from django.urls import reverse
+from django.template import loader
 
 # Importación de los modelos y clases requeridas en los formularios definidos.
 from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento
@@ -406,30 +408,74 @@ class MySetPasswordForm(SetPasswordForm):
 
 class CustomPasswordResetForm(PasswordResetForm):
     """
-    Formulario personalizado para inyectar el ID de plantilla de Brevo
-    en el correo de recuperación de contraseña.
+    Formulario personalizado que corrige el Error 500.
+    
+    1. Renderiza el texto base (para evitar el error).
+    2. Construye la URL de recuperación manualmente.
+    3. Inyecta el ID de Brevo y los datos (contexto) a Anymail.
     """
     
-    # 📌 REEMPLAZA ESTE NÚMERO CON TU ID DE PLANTILLA DE BREVO
+    # 📌 Tu ID de plantilla de Brevo
     BREVO_TEMPLATE_ID = 2 
+
+    # Añadimos el campo 'email' con tus estilos CSS (Tailwind)
+    # para que el formulario se vea bien en la web.
+    email = forms.EmailField(
+        label="Correo electrónico",
+        max_length=254,
+        widget=forms.EmailInput(attrs={
+            'class': 'appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm',
+            'placeholder': 'Correo electrónico',
+            'id': 'id_email',
+            'autocomplete': 'email'
+        })
+    )
 
     def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email, html_email_template_name=None):
         
-        # 1. Crear el objeto EmailMultiAlternatives base
+        # 1. Renderiza el asunto (como lo hace Django)
+        subject = loader.render_to_string(subject_template_name, context)
+        subject = ''.join(subject.splitlines()) # Limpia saltos de línea
+
+        # 2. Renderiza el cuerpo de texto (como lo hace Django)
+        body = loader.render_to_string(email_template_name, context)
+
+        # 3. **¡Clave! Construimos la URL de recuperación manualmente**
+        # Brevo no puede usar la etiqueta {% url %} de Django,
+        # así que creamos la URL aquí y la pasamos en el contexto.
+        
+        # OJO: Django 5+ usa 'password_reset_confirm'
+        # Si usas una versión más antigua, el 'name' puede variar.
+        try:
+            url_path = reverse('password_reset_confirm', kwargs={'uidb64': context['uid'], 'token': context['token']})
+        except Exception:
+            # Fallback por si el nombre de la ruta es diferente (común en apps antiguas)
+            url_path = f"/reset/{context['uid']}/{context['token']}/"
+
+        # Añadimos la URL completa al contexto que enviaremos a Brevo
+        context['recovery_url'] = f"{context['protocol']}://{context['domain']}{url_path}"
+
+        # 4. Crea el email (¡AHORA SÍ con contenido!)
         msg = EmailMultiAlternatives(
-            self.subject, 
-            self.message, 
+            subject,  # Asunto renderizado
+            body,     # Cuerpo de texto (servirá como fallback)
             from_email, 
             [to_email]
         )
         
-        # 2. **AQUÍ ESTÁ LA CLAVE:** Inyectar el ID de Brevo a través de Anymail
-        # 'esp_extra' permite pasar parámetros específicos del proveedor (Brevo/Sendinblue)
-        msg.esp_extra = {
-            'templateId': self.BREVO_TEMPLATE_ID,
-            # También puedes pasar variables de personalización si las necesitas
-            # 'params': {'enlace_recuperacion': context['protocol'] + '://' + context['domain'] + context['url']}
-        }
+        # 5. INSTRUCCIONES PARA ANYMAIL (BREVO)
+        
+        # 5a. Asigna el ID de la plantilla de Brevo.
+        msg.template_id = self.BREVO_TEMPLATE_ID
+        
+        # 5b. Pasa TODO el contexto (incluyendo nuestra 'recovery_url')
+        # a la plantilla de Brevo.
+        msg.merge_global_data = context 
 
-        # 3. Envía el mensaje. Anymail detectará 'templateId' y lo usará.
-        msg.send()
+        # 6. Envía el mensaje.
+        try:
+            msg.send()
+        except Exception as e:
+            # Imprime el error real en la consola del servidor para depuración
+            print(f"ERROR AL ENVIAR CORREO CON ANYMAIL/BREVO: {e}")
+            raise e
