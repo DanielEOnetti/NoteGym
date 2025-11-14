@@ -183,3 +183,19 @@ else:
     # --- Configuración de Desarrollo (Usa la Consola) ---
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     DEFAULT_FROM_EMAIL = 'danieleonetti12@gmail.com'
+
+if not DEBUG:
+    # 1. Fuerza que las cookies de sesión solo se envíen por HTTPS
+    SESSION_COOKIE_SECURE = True
+
+    # 2. Fuerza que la cookie de CSRF solo se envíe por HTTPS
+    CSRF_COOKIE_SECURE = True
+
+    # 3. Redirige todo el tráfico HTTP a HTTPS
+    SECURE_SSL_REDIRECT = True
+
+    # (Opcional pero recomendado) Configuración HSTS
+    # Le dice al navegador que "recuerde" usar solo HTTPS
+    SECURE_HSTS_SECONDS = 31536000  # 1 año
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True

@@ -1,9 +1,7 @@
 # core/models.py
-
-# Importaciones principales necesarias para la definición de modelos en Django.
 from django.db import models
 from django.contrib.auth.models import User
-from decimal import Decimal  # Importación potencialmente útil para operaciones con valores decimales.
+from decimal import Decimal  
 
 
 class PerfilUsuario(models.Model):
@@ -54,7 +52,7 @@ class PerfilUsuario(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='atletas',  # Permite acceder a los atletas desde entrenador.atletas.all()
+        related_name='atletas', 
         help_text="Entrenador asignado (solo para atletas)"
     )
 
@@ -130,7 +128,6 @@ class PerfilUsuario(models.Model):
             if not records_lista:
                 continue
             
-            # --- Encontrar récords absolutos (¡Se mantiene igual!) ---
             # Esto se calcula sobre la lista COMPLETA, antes de filtrar
             record_max_peso = None
             record_max_reps = None
@@ -144,11 +141,6 @@ class PerfilUsuario(models.Model):
                 if record['repeticiones'] == 1:
                     if record_max_peso_1rm is None or record['peso'] > record_max_peso_1rm['peso']:
                         record_max_peso_1rm = record.copy()
-
-            # ==================================================================
-            # === ¡NUEVA LÓGICA DE FILTRADO DE DOMINANCIA! ===
-            # ==================================================================
-            # Ahora, filtramos la lista para la tabla, eliminando récords "dominados"
             
             marcas_no_dominadas = []
             for record_a in records_lista:
@@ -169,16 +161,13 @@ class PerfilUsuario(models.Model):
                 # Si, tras comprobar contra todos, no fue dominado, lo añadimos
                 if not es_dominado:
                     marcas_no_dominadas.append(record_a)
-            # ==================================================================
-            # === FIN DE LA NUEVA LÓGICA ===
-            # ==================================================================
 
             # Ordenar la lista filtrada por repeticiones (ascendente: 1, 2, 3, ...)
             marcas_no_dominadas.sort(key=lambda x: x['repeticiones'])
 
             marcas_finales.append({
                 'ejercicio': data['ejercicio'],
-                'records_por_reps': marcas_no_dominadas,  # <-- ¡Usamos la lista filtrada!
+                'records_por_reps': marcas_no_dominadas,  
                 'record_max_peso': record_max_peso,
                 'record_max_reps': record_max_reps,
                 'record_max_peso_1rm': record_max_peso_1rm,
@@ -297,17 +286,15 @@ class DetalleEntrenamiento(models.Model):
         related_name='detalles'
     )
     
-    # ==================================================================
-    # ===               ¡NUEVO CAMPO DE ORDENACIÓN!                  ===
-    # ==================================================================
+
     orden = models.PositiveIntegerField(
         default=0,
         blank=False,
         null=False,
-        db_index=True, # Hace que las búsquedas por 'orden' sean más rápidas
+        db_index=True, 
         help_text="Posición del ejercicio en la rutina (1, 2, 3...)"
     )
-    # ==================================================================
+    
 
     # Peso sugerido por el entrenador para este ejercicio en esta rutina.
     peso_recomendado = models.DecimalField(
@@ -322,6 +309,7 @@ class DetalleEntrenamiento(models.Model):
     notas = models.TextField(blank=True, help_text="Notas específicas sobre el ejercicio")
 
     # Campo opcional para que el atleta suba un video con la ejecución.
+    # Esto serviría para en un futuruo que el atleta pueda madndar videos de sus ejercicios
     video_atleta = models.FileField(
         upload_to="videos_atletas/",
         blank=True,
@@ -334,19 +322,15 @@ class DetalleEntrenamiento(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        # CAMBIO: Añadimos el 'orden' para verlo fácil en el admin
         return f"{self.orden}. {self.ejercicio.nombre} - {self.entrenamiento.nombre}"
 
     class Meta:
         verbose_name = "Detalle de Entrenamiento"
         verbose_name_plural = "Detalles de Entrenamientos"
-        # CAMBIO: ¡Esta es la parte clave!
-        # Le decimos a Django que SIEMPRE ordene los detalles primero
-        # por su entrenamiento, y LUEGO por nuestro nuevo campo 'orden'.
         ordering = ["entrenamiento", "orden"]
 
 # ----------------------------------------------------------------------
-# SERIES DE EJERCICIOS (Registro de ejecución por serie)
+# SERIES DE EJERCICIOS 
 # ----------------------------------------------------------------------
 class SerieEjercicio(models.Model):
     """

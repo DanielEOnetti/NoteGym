@@ -11,17 +11,14 @@ from django.db.models import Subquery, OuterRef, DecimalField
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import transaction  # Proporciona herramientas para manejar transacciones atómicas en la base de datos.
+from django.db import transaction  
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.forms import inlineformset_factory,modelformset_factory
 from decimal import Decimal
-# Clases base de vistas genéricas proporcionadas por Django.
 from django.views.generic import CreateView, UpdateView, DetailView, ListView, TemplateView
 
-# Importación de los modelos utilizados en las vistas.
 from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento
-# Importación de formularios y formsets definidos en el módulo forms.py.
 from .forms import (
     RegistroUsuarioForm, EntrenamientoForm, EjercicioForm,
     SerieRegistroFormSet,  DetalleEntrenamientoForm,DetalleEntrenamientoFormSet, SerieFormSet, SeriePrescripcionInlineFormSet
@@ -47,7 +44,7 @@ class RegistroUsuarioView(CreateView):
     model = PerfilUsuario
     form_class = RegistroUsuarioForm
     template_name = "core/registro.html"
-    success_url = reverse_lazy("dashboard")  # Redirige al panel principal tras un registro exitoso.
+    success_url = reverse_lazy("dashboard")  
 
     def form_valid(self, form):
         """
@@ -171,7 +168,7 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 prefix='detalles'
             )
         else:
-            # (Correcto) Aseguramos el orden al cargar
+            
             queryset_detalles = entrenamiento.detalles.order_by('orden')
             context["detalle_formset"] = DetalleEntrenamientoFormSet(
                 instance=entrenamiento,
@@ -179,13 +176,10 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 queryset=queryset_detalles 
             )
         
-        # (Correcto) Aseguramos el orden para la visualización
+        
         context['detalles'] = entrenamiento.detalles.order_by('orden').prefetch_related('series')
         return context
 
-    # ==========================================================
-    # ===       ¡FORM_VALID 100% CORREGIDO Y FUSIONADO!      ===
-    # ==========================================================
     def form_valid(self, form):
         context = self.get_context_data()
         detalle_formset = context["detalle_formset"]
@@ -202,13 +196,13 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 # 3. Preparar el formset (pero no guardar aún)
                 detalle_formset.instance = self.object
                 
-                # 4. Construir el mapa Y guardar objetos (¡FUSIÓN DE LÓGICA!)
+                # 4. Construir el mapa Y guardar objetos 
                 detalle_map = {} # El mapa que tu _procesar_series necesita
                 
-                # Iteramos sobre los FORMULARIOS (tu método original)
+                # Iteramos sobre los Formularios
                 for i, form_in_formset in enumerate(detalle_formset.forms):
                     
-                    # 4A. Manejar borrados (Usando 'deleted_forms' - ¡LA FORMA CORRECTA!)
+                    # 4A. Manejar borrados 
                     if form_in_formset in detalle_formset.deleted_forms:
                         # Si el objeto ya existe en la BBDD, bórralo
                         if form_in_formset.instance.pk:
@@ -218,7 +212,7 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                     
                     # 4B. Saltar formularios inválidos (si los hubiera)
                     if not form_in_formset.is_valid():
-                        # (Opcional: podrías querer 'raise' un error aquí)
+                        
                         continue 
                         
                     # 4C. Procesar formularios válidos
@@ -231,13 +225,13 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                         detalle.orden = current_max_orden
                     
                     # Guardamos el objeto (sea nuevo o modificado)
-                    detalle.save() # Ahora SÍ tiene un .pk
+                    detalle.save() # Con un .pk
                     
-                    # ¡USAMOS TU LÓGICA DE MAPA!
+                    
                     # Añadimos la instancia guardada (con .pk) al mapa
                     detalle_map[str(i)] = detalle
                         
-                # 5. Procesar series (Tu lógica original, que ahora recibe el mapa correcto)
+                # 5. Procesar series 
                 self._procesar_series(self.request.POST, detalle_map)
 
             messages.success(self.request, "✅ Entrenamiento actualizado correctamente")
@@ -251,10 +245,10 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
             context['detalle_formset'] = detalle_formset # Sobrescribimos con el formset inválido
             return self.render_to_response(context)
 
-    # (Tu método _procesar_series se mantiene 100% igual)
+    # Método para procesar series
     def _procesar_series(self, post_data, detalle_map):
-        # ... (TU CÓDIGO ORIGINAL VA AQUÍ) ...
-        # 1️⃣ Actualizar o eliminar series existentes
+        
+        # Actualizar o eliminar series existentes
         series_existentes = SerieEjercicio.objects.filter(
             detalle_entrenamiento__entrenamiento=self.object
         )
@@ -273,7 +267,7 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
             
             serie.save()
 
-        # 2️⃣ Crear nuevas series usando el 'detalle_map'
+        # Crear nuevas series usando el 'detalle_map'
         new_series_data = {} 
 
         for key, value in post_data.items():
@@ -319,7 +313,7 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
         if series_para_crear:
             SerieEjercicio.objects.bulk_create(series_para_crear)
 
-    # (Tu método get_success_url se mantiene 100% igual)
+    
     def get_success_url(self):
         return reverse("dashboard")
 
@@ -340,9 +334,7 @@ class EntrenamientoDetailView(LoginRequiredMixin, DetailView):
         # Obtenemos al atleta de este entrenamiento
         atleta = entrenamiento.atleta
 
-        # ------------------------------------------------------------------
-        # Subquery para el último peso (Esto se mantiene igual)
-        # ------------------------------------------------------------------
+        
         ultimo_peso_subquery = SerieEjercicio.objects.filter(
             detalle_entrenamiento__ejercicio=OuterRef('ejercicio__pk'),
             entrenamiento__atleta=atleta,
@@ -353,9 +345,6 @@ class EntrenamientoDetailView(LoginRequiredMixin, DetailView):
             'peso_real'
         )[:1]
 
-        # ------------------------------------------------------------------
-        # Consulta Principal (¡AQUÍ ESTÁ LA ACTUALIZACIÓN!)
-        # ------------------------------------------------------------------
         # Añadimos .order_by('orden') para respetar el nuevo campo
         detalles = entrenamiento.detalles.order_by('orden').select_related('ejercicio').annotate(
             ultimo_peso_utilizado=Subquery(
@@ -373,16 +362,13 @@ class EntrenamientoDetailView(LoginRequiredMixin, DetailView):
 # -------------------------------------------------
 
 class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
-    form_class = forms.Form # Formulario 'dummy'
-    # ✅ CORREGIDO: Template name apunta a la página completa
+    form_class = forms.Form 
     template_name = "core/includes/serie_ejercicio_form.html" 
 
     def test_func(self):
         """Asegura que solo el entrenador dueño pueda configurar series."""
-        # ✅ MOVIDO: La obtención del entrenamiento se hace ahora en setup()
-        # self.entrenamiento = get_object_or_404(Entrenamiento, pk=self.kwargs['pk'])
+
         try:
-            # ✅ RESTAURADO: Usa la relación 'perfil' que funcionó
             return self.request.user.perfil == self.entrenamiento.entrenador
         except AttributeError:
              print(f"Error en test_func: El usuario {self.request.user} no tiene 'perfil' o el entrenamiento no tiene 'entrenador'.")
@@ -394,7 +380,7 @@ class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def setup(self, request, *args, **kwargs):
         """
-        ✅ NUEVO: Obtiene el objeto Entrenamiento una vez al inicio 
+        Obtiene el objeto Entrenamiento una vez al inicio 
         y lo guarda en self.entrenamiento.
         Se ejecuta antes que test_func, get_context_data y post.
         """
@@ -404,7 +390,6 @@ class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     def get_context_data(self, **kwargs):
         """Prepara la lista de (detalle, formset) para el template."""
         context = super().get_context_data(**kwargs)
-        # ✅ USA self.entrenamiento obtenido en setup()
         detalles = self.entrenamiento.detalles.all().select_related('ejercicio')
         
         detalles_with_formsets = []
@@ -430,8 +415,6 @@ class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def post(self, request, *args, **kwargs):
         """Valida y guarda todos los formsets."""
-        print("\n--- ¡Método POST alcanzado! ---") # Mantenemos el print
-        # ✅ USA self.entrenamiento obtenido en setup()
         detalles = self.entrenamiento.detalles.all()
         formsets = []
         is_valid = True 
@@ -450,10 +433,6 @@ class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 print(serie_formset.errors) 
                 print(serie_formset.non_form_errors())
 
-        print("\n--- request.POST ---")
-        print(request.POST)
-        print("--------------------\n")
-
         if is_valid:
             try:
                 with transaction.atomic():
@@ -467,17 +446,14 @@ class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                             if instance.numero_serie is None or str(instance.numero_serie).strip() == '': 
                                 instance.numero_serie = i + 1 # Asignar número basado en el índice
                             
-                            # Importante: Asegurar que la FK al detalle está asignada
-                            # (inlineformset_factory debería hacerlo, pero es una doble comprobación)
+                            # Asegurar que la FK al detalle está asignada
                             if not instance.detalle_entrenamiento_id and formset.instance:
                                 instance.detalle_entrenamiento = formset.instance
-
                             # Solo guardar si tiene la FK (evita errores si el detalle no existe)
                             if instance.detalle_entrenamiento_id:
                                 instance.save() 
                         
                         # 3. Manejar borrados (el formset lo hace automáticamente al guardar)
-                        #    Si commit=False no los maneja, puedes hacerlo manualmente:
                         for obj in formset.deleted_objects:
                              obj.delete()
 
@@ -505,6 +481,19 @@ class EjercicioCreateView(LoginRequiredMixin, CreateView):
     form_class = EjercicioForm
     template_name = "core/ejercicios/crear.html"
     success_url = reverse_lazy("dashboard")
+
+class EjercicioListView(LoginRequiredMixin, ListView):
+    model = Ejercicio
+    template_name = 'core/ejercicios/lista.html'  
+    context_object_name = 'ejercicios'     
+    paginate_by = 15                       
+
+
+class EjercicioDeleteView(LoginRequiredMixin, DeleteView):
+    model = Ejercicio
+    
+
+    success_url = reverse_lazy('ejercicio_lista')
 
 
 # -------------------------------------------------
@@ -536,7 +525,7 @@ class RutinaEditarRegistroView(LoginRequiredMixin, UpdateView):
     template_name = "core/atleta/detalle_rutina.html"
     fields = []
     
-    # --- Lógica de Permisos (Se mantiene igual) ---
+   
     def dispatch(self, request, *args, **kwargs):
         entrenamiento = self.get_object()
         perfil = request.user.perfil
@@ -547,12 +536,12 @@ class RutinaEditarRegistroView(LoginRequiredMixin, UpdateView):
             
         return super().dispatch(request, *args, **kwargs)
 
-    # --- Gestión del Formset (¡AQUÍ ESTÁ LA ACTUALIZACIÓN 1!) ---
+    
     def get_formset(self):
         """Inicializa o procesa el Formset de Series para registro."""
         entrenamiento = self.get_object()
         
-        # CAMBIO: Ordenamos por el 'orden' del detalle, y luego por 'numero_serie'
+        # Ordenamos por el 'orden' del detalle, y luego por 'numero_serie'
         queryset_series = SerieEjercicio.objects.filter(
             detalle_entrenamiento__entrenamiento=entrenamiento
         ).order_by('detalle_entrenamiento__orden', 'numero_serie')
@@ -569,7 +558,6 @@ class RutinaEditarRegistroView(LoginRequiredMixin, UpdateView):
                 prefix='series'
             )
 
-    # --- Datos de Contexto (¡AQUÍ ESTÁ LA ACTUALIZACIÓN 2!) ---
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         entrenamiento = self.get_object()
@@ -577,13 +565,12 @@ class RutinaEditarRegistroView(LoginRequiredMixin, UpdateView):
         context['modo_usuario'] = 'atleta'
         context['entrenamiento'] = entrenamiento
         
-        # CAMBIO: Añadimos .order_by('orden') para respetar el nuevo campo
+        #Añadimos .order_by('orden') para respetar el nuevo campo
         context['detalles'] = entrenamiento.detalles.order_by('orden').prefetch_related('series') 
         context['series_formset'] = self.get_formset()
         
         return context
 
-    # --- POST (Se mantiene igual) ---
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         series_formset = self.get_formset()
@@ -600,8 +587,7 @@ class RutinaEditarRegistroView(LoginRequiredMixin, UpdateView):
             context = self.get_context_data()
             context['series_formset'] = series_formset
             return self.render_to_response(context)
-    
-    # --- get_success_url (Se mantiene igual) ---
+
     def get_success_url(self):
         """Define a dónde redirigir tras un POST exitoso."""
         return reverse_lazy('detalle_rutina', kwargs={'pk': self.object.pk})
@@ -641,20 +627,6 @@ class AtletaProgresionMaxView(LoginRequiredMixin, DetailView):
         return context
 
 
-# -------------------------------------------------
-# FUNCIONES AUXILIARES
-# -------------------------------------------------
-
-def custom_logout_view(request):
-    """
-    Cierra la sesión del usuario actual y redirige a la página de inicio de sesión.
-    """
-    logout(request)
-    return redirect("login")
-
-
-
-
 class MarcasPersonalesListView(LoginRequiredMixin, TemplateView):
     """
     Vista que MUESTRA los récords personales (PR) del atleta.
@@ -671,11 +643,24 @@ class MarcasPersonalesListView(LoginRequiredMixin, TemplateView):
         # 2. Llamar al método del modelo que hace todo el trabajo
         context['marcas'] = perfil.get_marcas_personales()
         
-        # (Opcional) Si aún quieres las variables de debug, puedes añadirlas,
-        # aunque ya no son tan necesarias para depurar la lógica de PRs.
-        # context['debug_perfil_id'] = perfil.id
-        
         return context
+
+
+# -------------------------------------------------
+# FUNCIONES AUXILIARES
+# -------------------------------------------------
+
+def custom_logout_view(request):
+    """
+    Cierra la sesión del usuario actual y redirige a la página de inicio de sesión.
+    """
+    logout(request)
+    return redirect("login")
+
+
+
+
+
 
 
 class EntrenamientoDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
@@ -686,7 +671,6 @@ class EntrenamientoDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteVie
     def test_func(self):
         entrenamiento = self.get_object()
         try:
-            # ✅ CAMBIO: Usamos 'perfil' (el related_name) en lugar de 'perfilusuario'
             perfil_actual = self.request.user.perfil 
             
             if perfil_actual.tipo != 'entrenador':
@@ -701,7 +685,6 @@ class EntrenamientoDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteVie
              print(f"Error: El usuario {self.request.user} no tiene un PerfilUsuario asociado.")
              return False
         except PerfilUsuario.DoesNotExist: 
-             # Opcional: Captura específica si la relación es OneToOne y no existe
              print(f"Error: No existe PerfilUsuario para el usuario {self.request.user}.")
              return False
 
@@ -726,7 +709,6 @@ class ListaAtletasView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     context_object_name = 'atletas'
 
     def test_func(self):
-        # --- ESTA PARTE (PROBABLEMENTE YA LA CORREGISTE) ---
         if hasattr(self.request.user, 'perfil'):
             return self.request.user.perfil.tipo == 'entrenador'
         return False
@@ -738,9 +720,6 @@ class ListaAtletasView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         entrenador_actual = self.request.user.perfil
         
         queryset = super().get_queryset().filter(
-            
-            # === ¡EL ERROR ESTÁ AQUÍ! ===
-            # Asegúrate de que ponga "tipo" y no "tipo_usuario"
             tipo='atleta', 
             
             entrenador=entrenador_actual
@@ -756,14 +735,11 @@ class AtletaRecordDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView
     """
     model = PerfilUsuario
     template_name = 'core/entrenador/atleta_record.html'
-    context_object_name = 'atleta' # El atleta estará disponible como 'atleta' en el template
+    context_object_name = 'atleta' 
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # self.get_object() es el PerfilUsuario del atleta (obtenido por la PK de la URL)
         atleta = self.get_object()
-        
-        # Usamos el MISMO método de lógica, pero en el objeto del atleta
         context['marcas'] = atleta.get_marcas_personales()
         return context
 
@@ -790,10 +766,10 @@ class AtletaRecordDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView
 
     def handle_no_permission(self):
         # Si falla el test_func, lo sacamos de aquí.
-        return redirect('dashboard') # O a la lista de atletas
+        return redirect('dashboard') 
     
 
-@method_decorator(csrf_protect, name='dispatch') # Asegura la protección CSRF
+@method_decorator(csrf_protect, name='dispatch') 
 class ActualizarOrdenEjerciciosView(LoginRequiredMixin, View):
     """
     Vista AJAX que recibe el nuevo orden de los ejercicios (DetalleEntrenamiento)
@@ -808,7 +784,7 @@ class ActualizarOrdenEjerciciosView(LoginRequiredMixin, View):
         # 2. Cargar los datos enviados por AJAX
         try:
             data = json.loads(request.body)
-            detalle_ids = data.get('orden') # Esperamos una lista de IDs [3, 1, 2]
+            detalle_ids = data.get('orden') 
             if not isinstance(detalle_ids, list):
                 return HttpResponseBadRequest("Datos inválidos.")
         except json.JSONDecodeError:
@@ -826,7 +802,6 @@ class ActualizarOrdenEjerciciosView(LoginRequiredMixin, View):
             # Obtenemos el 'entrenamiento' del primer ejercicio
             entrenamiento_base = detalles[0].entrenamiento
             
-            # --- ¡CHEQUEO DE SEGURIDAD CLAVE! ---
             # Asumimos que la propiedad del Entrenamiento viene dada por
             # el 'entrenador' del 'atleta' asignado.
             if entrenamiento_base.atleta.entrenador != request.user.perfil:
@@ -836,21 +811,21 @@ class ActualizarOrdenEjerciciosView(LoginRequiredMixin, View):
             if any(d.entrenamiento_id != entrenamiento_base.id for d in detalles):
                 return HttpResponseBadRequest("Los ejercicios pertenecen a entrenamientos diferentes.")
 
-            # 4. Actualizar la base de datos (¡Transacción Atómica!)
+            # 4. Actualizar la base de datos 
             with transaction.atomic():
-                # Creamos un mapa de {id: instancia} para eficiencia
+                # Creamos un mapa de {id: instancia} 
                 detalle_map = {d.id: d for d in detalles}
                 
                 # Recorremos la lista de IDs que envió el frontend
                 for (index, detalle_id) in enumerate(detalle_ids):
-                    # El nuevo orden es el índice + 1 (ej. 1, 2, 3...)
+
                     nuevo_orden = index + 1
                     
                     detalle = detalle_map.get(int(detalle_id))
                     
                     if detalle and detalle.orden != nuevo_orden:
                         detalle.orden = nuevo_orden
-                        detalle.save(update_fields=['orden']) # Eficiente: solo actualiza 'orden'
+                        detalle.save(update_fields=['orden']) 
 
             # 5. Enviar respuesta de éxito
             return JsonResponse({"status": "ok", "message": "¡Orden actualizado!"})
@@ -866,15 +841,3 @@ class ActualizarOrdenEjerciciosView(LoginRequiredMixin, View):
 
 
 
-class EjercicioListView(LoginRequiredMixin, ListView):
-    model = Ejercicio
-    template_name = 'core/ejercicios/lista.html'  # La ruta a tu nuevo template
-    context_object_name = 'ejercicios'     # El nombre que usaremos en el template
-    paginate_by = 15                       # Buena práctica para listas largas
-
-
-class EjercicioDeleteView(LoginRequiredMixin, DeleteView):
-    model = Ejercicio
-    
-    # URL a la que redirigir después de borrar con éxito
-    success_url = reverse_lazy('ejercicio_lista')

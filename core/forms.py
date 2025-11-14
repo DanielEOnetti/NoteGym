@@ -1,6 +1,4 @@
 # core/forms.py
-
-# Importaciones principales del framework Django para la construcción de formularios.
 from django import forms
 from django.db.models import Q
 from django.core.exceptions import ValidationError
@@ -10,14 +8,8 @@ from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 from django.core.mail import EmailMultiAlternatives
 from django.urls import reverse
 from django.template import loader
-
-# Importación de los modelos y clases requeridas en los formularios definidos.
 from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento
 from decimal import Decimal, ROUND_HALF_UP
-
-# ========================================================================
-# === ¡¡IMPORTS QUE FALTABAN PARA EL LOGIN!! ===
-# ========================================================================
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import authenticate, get_user_model
 
@@ -84,10 +76,10 @@ class EntrenamientoForm(forms.ModelForm):
                 Q(entrenador=perfil_entrenador) | 
                 Q(entrenador__isnull=True)     
             
-            ).distinct().order_by('nombre') # .distinct() por si acaso y ordenado
+            ).distinct().order_by('nombre')
 
         else:
-            # 4. Fallback: si no hay user, solo muestra atletas
+            # si no hay user, solo muestra atletas
             # (Útil si un SuperAdmin entra desde /admin)
             self.fields['atleta'].queryset = PerfilUsuario.objects.filter(
                 tipo='atleta'
@@ -188,7 +180,6 @@ SeriePrescripcionInlineFormSet = inlineformset_factory(
 # ------------------------------------------------------------------------
 class SerieRegistroForm(forms.ModelForm):
 
-    # ⭐️ 1. MÉTODO __INIT__ (Para la UI del Placeholder)
     def __init__(self, *args, **kwargs):
         """
         Sobrescribe el __init__ para la Solución 2 (Placeholder):
@@ -205,12 +196,11 @@ class SerieRegistroForm(forms.ModelForm):
             if self.instance.peso_real is not None:
                 peso_val = self.instance.peso_real
                 
-                # Formateamos el string para que muestre "80" en vez de "80.0"
                 formatted_peso_str = ""
                 if peso_val == peso_val.to_integral_value():
-                    formatted_peso_str = str(peso_val.to_integral_value()) # "80"
+                    formatted_peso_str = str(peso_val.to_integral_value()) 
                 else:
-                    formatted_peso_str = str(peso_val) # "80.5"
+                    formatted_peso_str = str(peso_val) 
 
                 # 1. Asignamos el valor anterior al placeholder
                 self.fields['peso_real'].widget.attrs['placeholder'] = f"{formatted_peso_str} kg"
@@ -228,7 +218,6 @@ class SerieRegistroForm(forms.ModelForm):
                 # 2. Vaciamos el valor inicial del campo
                 self.initial['repeticiones_reales'] = None
 
-    # ⭐️ 2. CLASE META (Define los campos y widgets)
     class Meta:
         model = SerieEjercicio
         fields = [
@@ -238,7 +227,6 @@ class SerieRegistroForm(forms.ModelForm):
             "repeticiones_reales",
         ]
 
-        # --- Clases de Tailwind (Sin cambios) ---
         input_classes = (
             "w-full text-center text-sm rounded-md border-0 "
             "bg-transparent "
@@ -258,12 +246,12 @@ class SerieRegistroForm(forms.ModelForm):
             
             "peso_real": forms.NumberInput(attrs={
                 "step": "0.25", 
-                "placeholder": "Peso (kg)", # Placeholder genérico (sobrescrito por __init__)
+                "placeholder": "Peso (kg)", 
                 "class": input_classes
             }),
             
             "repeticiones_reales": forms.NumberInput(attrs={
-                "placeholder": "Reps", # Placeholder genérico (sobrescrito por __init__)
+                "placeholder": "Reps", 
                 "class": input_classes
             }),
         }
@@ -273,7 +261,6 @@ class SerieRegistroForm(forms.ModelForm):
             "repeticiones_reales": "Reps",
         }
 
-    # ⭐️ 3. VALIDACIÓN DE CAMPO (Tu código original)
     def clean_peso_real(self):
         peso = self.cleaned_data.get('peso_real')
         
@@ -301,7 +288,6 @@ class SerieRegistroForm(forms.ModelForm):
             
         return peso
 
-    # ⭐️ 4. VALIDACIÓN DE FORMULARIO (La corrección para evitar borrados)
     def clean(self):
         """
         Sobrescribe el método clean() para evitar que se borren
@@ -309,32 +295,31 @@ class SerieRegistroForm(forms.ModelForm):
         """
         cleaned_data = super().clean()
         
-        # 'self.instance' es el objeto SerieEjercicio original (con los 80kg)
+        # 'self.instance' es el objeto SerieEjercicio original 
         if not self.instance or not self.instance.pk:
-            # Si es un objeto nuevo, no hay nada que hacer
             return cleaned_data
 
         # --- Lógica para 'peso_real' ---
         # Si el campo 'peso_real' se envió vacío...
         if cleaned_data.get('peso_real') is None:
-            # ...y el objeto original SÍ tenía un valor...
+            # ...y el objeto original si tenía un valor...
             if self.instance.peso_real is not None:
-                # ...¡restaura el valor original!
+                # restaurar el valor original
                 cleaned_data['peso_real'] = self.instance.peso_real
 
         # --- Lógica para 'repeticiones_reales' ---
         # Si el campo 'repeticiones_reales' se envió vacío...
         if cleaned_data.get('repeticiones_reales') is None:
-            # ...y el objeto original SÍ tenía un valor...
+            # ...y el objeto original si tenía un valor...
             if self.instance.repeticiones_reales is not None:
-                # ...¡restaura el valor original!
+                # restaurar el valor original
                 cleaned_data['repeticiones_reales'] = self.instance.repeticiones_reales
 
         return cleaned_data
 
-# ========================================================================
-# Creación de FormSets para gestión masiva de series
-# ========================================================================
+
+# Creación de FormSets 
+
 SerieFormSet = modelformset_factory(
     SerieEjercicio,
     form=SeriePrescripcionForm,
@@ -349,9 +334,9 @@ SerieRegistroFormSet = modelformset_factory(
     can_delete=False
 )
 
-# ========================================================================
-# Formulario de Login Inteligente (Username o Email)
-# ========================================================================
+
+# Formulario de Login Inteligente 
+
 class EmailOrUsernameLoginForm(AuthenticationForm):
     """
     Formulario de autenticación que permite a los usuarios iniciar sesión
@@ -360,7 +345,6 @@ class EmailOrUsernameLoginForm(AuthenticationForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # El label ya es correcto por el placeholder del template
         self.fields['username'].label = "Usuario o Email" 
 
     def clean(self):
@@ -373,19 +357,17 @@ class EmailOrUsernameLoginForm(AuthenticationForm):
             # Inicializamos el caché de usuario como None
             self.user_cache = None
 
-            # ------------------------------------------------------------
+
             # INTENTO 1: Autenticar por USERNAME
-            # (En tu app, el username ES el email)
-            # ------------------------------------------------------------
+            # (El username es el email)
             self.user_cache = authenticate(
                 self.request, 
                 username=username_or_email_or_nombre, 
                 password=password
             )
             
-            # ------------------------------------------------------------
+
             # INTENTO 2: Autenticar por EMAIL (Fallback)
-            # ------------------------------------------------------------
             if self.user_cache is None:
                 try:
                     # Buscamos al usuario por su email
@@ -399,25 +381,22 @@ class EmailOrUsernameLoginForm(AuthenticationForm):
                 except User.DoesNotExist:
                     pass # No era un email, pasamos al siguiente intento
 
-            # ------------------------------------------------------------
             # ¡NUEVO! INTENTO 3: Autenticar por NOMBRE DE PERFIL
-            # ------------------------------------------------------------
+
             if self.user_cache is None:
                 try:
                     # Buscamos el *perfil* por el campo 'nombre'
                     perfil = PerfilUsuario.objects.get(nombre__iexact=username_or_email_or_nombre)
                     
-                    # ¡Encontrado! Autenticamos usando el 'username' del usuario de ese perfil
+                    # Autenticamos usando el 'username' del usuario de ese perfil
                     self.user_cache = authenticate(
                         self.request,
                         username=perfil.user.username, 
                         password=password
                     )
                 except PerfilUsuario.DoesNotExist:
-                    pass # No era un nombre, se acabaron los intentos
+                    pass 
                 except PerfilUsuario.MultipleObjectsReturned:
-                    # Si dos usuarios se llaman "Juan Pérez", no podemos adivinar.
-                    # El login fallará, lo cual es el comportamiento de seguridad correcto.
                     pass
 
             # ------------------------------------------------------------
@@ -441,7 +420,7 @@ class MyPasswordResetForm(PasswordResetForm):
         widget=forms.EmailInput(attrs={
             'class': 'appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm',
             'placeholder': 'Correo electrónico',
-            'id': 'id_email', # Asegura que el <label> funcione
+            'id': 'id_email', 
             'autocomplete': 'email'
         })
     )
@@ -479,10 +458,10 @@ class CustomPasswordResetForm(PasswordResetForm):
     3. Inyecta el ID de Brevo y los datos (contexto) a Anymail.
     """
     
-    # 📌 Tu ID de plantilla de Brevo
+    # ID de plantilla de Brevo
     BREVO_TEMPLATE_ID = 2 
 
-    # Añadimos el campo 'email' con tus estilos CSS (Tailwind)
+    # Añadimos el campo 'email' con estilos CSS (Tailwind)
     # para que el formulario se vea bien en la web.
     email = forms.EmailField(
         label="Correo electrónico",
@@ -497,11 +476,11 @@ class CustomPasswordResetForm(PasswordResetForm):
 
     def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email, html_email_template_name=None):
         
-        # 1. Renderiza el asunto (como lo hace Django)
+        # 1. Renderiza el asunto 
         subject = loader.render_to_string(subject_template_name, context)
         subject = ''.join(subject.splitlines()) # Limpia saltos de línea
 
-        # 2. Renderiza el cuerpo de texto (como lo hace Django)
+        # 2. Renderiza el cuerpo de texto 
         body = loader.render_to_string(email_template_name, context)
 
         # 3. Construimos la URL de recuperación manualmente
@@ -514,8 +493,8 @@ class CustomPasswordResetForm(PasswordResetForm):
 
         # 4. Crea el email
         msg = EmailMultiAlternatives(
-            subject,    # Asunto renderizado
-            body,       # Cuerpo de texto (servirá como fallback)
+            subject,    
+            body,       
             from_email, 
             [to_email]
         )
@@ -529,7 +508,7 @@ class CustomPasswordResetForm(PasswordResetForm):
         # Obtenemos el objeto User
         user = context.get('user') 
 
-        # Hacemos la consulta del nombre MÁS SEGURA
+        # Hacemos la consulta del nombre más segura
         try:
              # Accedemos al perfil relacionado y cogemos el campo 'nombre'
              nombre_usuario = user.perfil.nombre
@@ -540,7 +519,7 @@ class CustomPasswordResetForm(PasswordResetForm):
              # Si user.perfil no existe o falla cualquier cosa, usamos el default
              nombre_usuario = 'usuario'
 
-        # Creamos el diccionario de datos LIMPIO
+        # Creamos el diccionario de datos limpio
         brevo_data = {
             "recovery_url": context.get('recovery_url'),
             "uid": context.get('uid'),
