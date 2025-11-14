@@ -8,7 +8,7 @@
 {% block content %}
 <div class="max-w-4xl mx-auto">
 
-    {# ========== ENCABEZADO (Rediseñado) ========== #}
+    
     <header class="mb-8">
         <nav class="text-sm mb-3 text-gray-500">
             <a href="{% url 'dashboard' %}" class="hover:text-primary">Dashboard</a> &gt; 
@@ -34,7 +34,7 @@
         {% endif %}
     </header>
 
-    {# ========== FORMULARIO DE REGISTRO DE SESIÓN ========== #}
+   
     <form method="post" id="registro-entrenamiento-form">
         {% csrf_token %}
 
@@ -55,7 +55,7 @@
                 
                 <div id="ejercicio-card-{{ detalle.pk }}" class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
                     
-                    {# Encabezado del ejercicio (Accordion trigger) #}
+                    
                     <div class="flex items-center justify-between p-5 border-b border-gray-100 cursor-pointer bg-gray-50 hover:bg-gray-100 transition" 
                          data-accordion-target="#collapse-{{ detalle.pk }}" aria-expanded="true">
                         
@@ -76,7 +76,7 @@
 
                     <div id="collapse-{{ detalle.pk }}" class="p-5 border-t border-gray-100 accordion-content">
                         
-                        {# Prescripción del Entrenador (Estilo unificado) #}
+                        
                         {% if detalle.notas or detalle.peso_recomendado %}
                         <div class="mb-4 text-sm text-gray-700 p-3 bg-indigo-50 rounded-lg">
                             
@@ -86,7 +86,7 @@
                         </div>
                         {% endif %}
                         
-                        {# Tabla de Registro de Series #}
+                        
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-100">
@@ -146,7 +146,6 @@
             {% endfor %}
         </div>
         
-        {# ========== BOTÓN GUARDAR (Estilo unificado) ========== #}
         <div class="mt-10 sticky bottom-0 p-4 z-10 flex justify-end">
  
           <button 

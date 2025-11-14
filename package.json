@@ -1,0 +1,27 @@
+{
+  "name": "gym_notebook",
+  "version": "1.0.0",
+  "description": "Gym Notebook es una aplicación web desarrollada con Django que facilita la gestión y el seguimiento de rutinas de entrenamiento personalizadas. Está diseñada para conectar a entrenadores con sus atletas, permitiendo a los entrenadores crear y asignar planes de ejercicio detallados, y a los atletas registrar su rendimiento, seguir su progreso y visualizar sus marcas personales.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",               
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DanielEOnetti/NoteGym.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DanielEOnetti/NoteGym/issues"
+  },
+  "homepage": "https://github.com/DanielEOnetti/NoteGym#readme",
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "vite": "^7.2.2"
+  }
+}

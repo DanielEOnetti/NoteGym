@@ -29,6 +29,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from django.db import transaction
 import json
+from .serializers import EjercicioSerializer
+from rest_framework import viewsets, permissions
 
 def root_redirect(request):
     return redirect('login')
@@ -482,18 +484,12 @@ class EjercicioCreateView(LoginRequiredMixin, CreateView):
     template_name = "core/ejercicios/crear.html"
     success_url = reverse_lazy("dashboard")
 
-class EjercicioListView(LoginRequiredMixin, ListView):
-    model = Ejercicio
-    template_name = 'core/ejercicios/lista.html'  
-    context_object_name = 'ejercicios'     
-    paginate_by = 15                       
-
-
-class EjercicioDeleteView(LoginRequiredMixin, DeleteView):
-    model = Ejercicio
-    
-
-    success_url = reverse_lazy('ejercicio_lista')
+class EjercicioReactListView(LoginRequiredMixin, TemplateView):
+    """
+    Esta vista sirve el "caparazón" HTML (la plantilla)
+    donde se montará nuestra aplicación de React.
+    """
+    template_name = 'core/ejercicios/react_loader.html'
 
 
 # -------------------------------------------------
@@ -841,3 +837,19 @@ class ActualizarOrdenEjerciciosView(LoginRequiredMixin, View):
 
 
 
+class EjercicioViewSet(viewsets.ModelViewSet):
+    """
+    Este ViewSet proporciona automáticamente las acciones:
+    .list()   (GET /api/ejercicios/)
+    .retrieve() (GET /api/ejercicios/<pk>/)
+    .create()  (POST /api/ejercicios/)
+    .update()  (PUT /api/ejercicios/<pk>/)
+    .destroy() (DELETE /api/ejercicios/<pk>/)
+    """
+    queryset = Ejercicio.objects.all().order_by('nombre')
+    serializer_class = EjercicioSerializer
+    
+    # Solo permitimos el acceso a usuarios autenticados
+    permission_classes = [permissions.IsAuthenticated]
+
+    

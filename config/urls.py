@@ -1,14 +1,11 @@
 # core/urls.py
 
-# Importaciones principales de Django para la gestión de rutas y administración.
 from django.urls import path, include
 from django.shortcuts import redirect
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from core.views import root_redirect 
 from django.contrib.auth import views as auth_views
-
-# Importación de las vistas utilizadas en la aplicación principal (core).
 from core.views import (
     RegistroUsuarioView,
     DashboardView,
@@ -27,16 +24,12 @@ from core.views import (
     ListaAtletasView,
     AtletaRecordDetailView,
     ActualizarOrdenEjerciciosView,
-    EjercicioListView,
-    EjercicioDeleteView
+    EjercicioReactListView,
     
 )
-# Importas tu formulario personalizado (¡esto es correcto!)
+
 from core.forms import EmailOrUsernameLoginForm, MyPasswordResetForm, MySetPasswordForm, CustomPasswordResetForm
 
-# ========================================================================
-# Definición de patrones de URL del proyecto.
-# ========================================================================
 urlpatterns = [
     # --------------------------------------------------------------------
     # Administración y utilidades
@@ -44,28 +37,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("__reload__/", include("django_browser_reload.urls")),
     path('', root_redirect, name='root_redirect'),
-
-    # --------------------------------------------------------------------
-    # Autenticación y gestión de usuarios
-    # --------------------------------------------------------------------
-
-    # Vista genérica de inicio de sesión (LoginView)
-    # --- ¡CORRECCIÓN Y MEJORA DE INDENTACIÓN AQUÍ! ---
-    path(
-        "login/",
-        auth_views.LoginView.as_view(
-            template_name="core/login.html",
-            authentication_form=EmailOrUsernameLoginForm  # Le pasamos el formulario
-        ),  # <-- La llamada a as_view() se cierra aquí
-        name="login"  # <-- La coma faltante se añade antes de 'name'
-    ),
-
-    # Vista personalizada de cierre de sesión.
+    path("login/",auth_views.LoginView.as_view(template_name="core/login.html",authentication_form=EmailOrUsernameLoginForm),name="login"),
     path("logout/", custom_logout_view, name="logout"),
-
-    # Vista de registro de nuevos usuarios.
     path("registro/", RegistroUsuarioView.as_view(), name="registro"),
-
     # --------------------------------------------------------------------
     # Dashboard general
     # --------------------------------------------------------------------
@@ -89,11 +63,7 @@ urlpatterns = [
     # Gestión de ejercicios
     # --------------------------------------------------------------------
     path("ejercicios/crear/", EjercicioCreateView.as_view(), name="ejercicio_crear"),
-    path('ejercicios/', EjercicioListView.as_view(), name='ejercicio_lista'),
-    path('ejercicios/<int:pk>/eliminar/', 
-         EjercicioDeleteView.as_view(), 
-         name='ejercicio_delete'),
-
+    path('ejercicios/', EjercicioReactListView.as_view(), name='ejercicio_lista'),
     # --------------------------------------------------------------------
     # Sección del atleta
     # --------------------------------------------------------------------
@@ -105,44 +75,13 @@ urlpatterns = [
     path('entrenador/atleta/<int:pk>/records/', AtletaRecordDetailView.as_view(), name='atleta_record_detail'),
     path("progreso-maximo/<int:ejercicio_pk>/", AtletaProgresionMaxView.as_view(), name="progresion_maxima"),
 
-
-    path(
-        "entrenamientos/actualizar-orden/", 
-        ActualizarOrdenEjerciciosView.as_view(), 
-        name="actualizar_orden_ejercicios"
-    ),
-
- # 1. Formulario para solicitar el email (USA CustomPasswordResetForm con Brevo ID)
-    path('password_reset/', 
-          auth_views.PasswordResetView.as_view(
-              template_name='registration/password_reset_form.html',
-              # 🔑 CLAVE: Usa el formulario que inyecta el ID de Brevo (2)
-              form_class=CustomPasswordResetForm, 
-              # El template de texto sigue siendo obligatorio, aunque Anymail lo ignora a favor del templateId
-              email_template_name='registration/password_reset_email.txt', 
-          ), 
-          name='password_reset'),
-
-    # 2. Página mostrada tras enviar el email
-    path('password_reset/done/', 
-          auth_views.PasswordResetDoneView.as_view(
-              template_name='registration/password_reset_done.html'
-          ), 
-          name='password_reset_done'),
-
-    # 3. Formulario para introducir la nueva contraseña
-    path('reset/<uidb64>/<token>/', 
-          auth_views.PasswordResetConfirmView.as_view(
-              template_name='registration/password_reset_confirm.html',
-              form_class=MySetPasswordForm 
-          ), 
-          name='password_reset_confirm'),
-
-    # 4. Página final de confirmación
-    path('reset/done/', 
-          auth_views.PasswordResetCompleteView.as_view(
-              template_name='registration/password_reset_complete.html'
-          ), 
-          name='password_reset_complete'),
-
+    # --------------------------------------------------------------------
+    # Otros
+    # --------------------------------------------------------------------
+    path("entrenamientos/actualizar-orden/",ActualizarOrdenEjerciciosView.as_view(),name="actualizar_orden_ejercicios"),
+    path('password_reset/', auth_views.PasswordResetView.as_view(template_name='registration/password_reset_form.html',form_class=CustomPasswordResetForm, email_template_name='registration/password_reset_email.txt', ),name='password_reset'),
+    path('password_reset/done/',auth_views.PasswordResetDoneView.as_view(template_name='registration/password_reset_done.html'),name='password_reset_done'),
+    path('reset/<uidb64>/<token>/',auth_views.PasswordResetConfirmView.as_view(template_name='registration/password_reset_confirm.html',form_class=MySetPasswordForm),name='password_reset_confirm'),
+    path('reset/done/',auth_views.PasswordResetCompleteView.as_view(template_name='registration/password_reset_complete.html'),name='password_reset_complete'),
+    path('api/', include('core.api_urls')),
 ]

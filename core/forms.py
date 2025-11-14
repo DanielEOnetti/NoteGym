@@ -86,7 +86,7 @@ class EntrenamientoForm(forms.ModelForm):
             ).order_by('nombre')
 
 # ========================================================================
-# Formulario de Detalle de Entrenamiento (para el Formset)
+# Formulario de Detalle de Entrenamiento
 # ========================================================================
 class DetalleEntrenamientoForm(forms.ModelForm):
     class Meta:
@@ -182,14 +182,11 @@ class SerieRegistroForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         """
-        Sobrescribe el __init__ para la Solución 2 (Placeholder):
         1. Pone los valores de la sesión anterior (peso/reps) en el placeholder.
         2. Vacía el valor 'initial' del campo para que aparezca vacío.
         """
         super().__init__(*args, **kwargs)
         
-        # Solo aplicamos esta lógica en la carga inicial (GET),
-        # no cuando se envía el formulario (POST).
         if not self.is_bound and self.instance and self.instance.pk:
             
             # --- Lógica para 'peso_real' ---
@@ -289,10 +286,6 @@ class SerieRegistroForm(forms.ModelForm):
         return peso
 
     def clean(self):
-        """
-        Sobrescribe el método clean() para evitar que se borren
-        los datos existentes si el usuario deja un campo vacío.
-        """
         cleaned_data = super().clean()
         
         # 'self.instance' es el objeto SerieEjercicio original 
@@ -461,8 +454,7 @@ class CustomPasswordResetForm(PasswordResetForm):
     # ID de plantilla de Brevo
     BREVO_TEMPLATE_ID = 2 
 
-    # Añadimos el campo 'email' con estilos CSS (Tailwind)
-    # para que el formulario se vea bien en la web.
+    
     email = forms.EmailField(
         label="Correo electrónico",
         max_length=254,

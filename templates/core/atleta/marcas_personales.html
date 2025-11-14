@@ -4,7 +4,7 @@
 {% block content %}
 <div class="max-w-6xl mx-auto">
 
-    {# 1. Encabezado de la Página (Estilo unificado) #}
+    
     <header class="mb-8">
         <nav class="text-sm mb-3 text-gray-500">
             <a href="{% url 'dashboard' %}" class="hover:text-primary">Dashboard</a>
@@ -21,7 +21,7 @@
         {% for marca in marcas %}
         <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
             
-            {# CABECERA COLAPSABLE #}
+           
             <button 
                 data-accordion-trigger="ejercicio-{{ marca.ejercicio.id }}"
                 class="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition"
@@ -42,7 +42,7 @@
                         </p>
                     </div>
                     
-                    {# Resumen de récords (Estilo unificado) #}
+                    
                     <div class="hidden md:flex gap-6 mr-4">
                         {% if marca.record_max_peso_1rm %}
                         <div class="text-center">
@@ -71,15 +71,15 @@
                 {% endif %}
             </button>
             
-            {# CONTENIDO COLAPSABLE (Oculto por defecto) #}
+            
             <div id="ejercicio-{{ marca.ejercicio.id }}" class="accordion-content hidden">
                 <div class="px-6 pb-6">
                     <hr class="mb-6">
                     
-                    {# BLOQUE DE RÉCORDS ABSOLUTOS (Estilo unificado) #}
+                    
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         
-                        {# Peso Máximo Absoluto #}
+                        
                         <div class="flex-1 p-4 border rounded-lg shadow-sm bg-purple-50 border-purple-200">
                             <p class="text-xs font-semibold uppercase text-purple-600 mb-1">Peso Máximo Absoluto</p>
                             {% if marca.record_max_peso %}
@@ -121,9 +121,7 @@
                         </div>
                     </div>
                     
-                    {# ========================================================== #}
-                    {# === TABLA DE REGISTROS (AQUÍ ESTÁN LAS CORRECCIONES) === #}
-                    {# ========================================================== #}
+                    
                     <div class="overflow-x-auto">
                         <table class="w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -180,7 +178,7 @@
         {% endfor %}
     </div>
     {% else %}
-        {# Mensaje si no hay marcas (Estilo unificado) #}
+        
         <div class="text-center py-16 px-6 bg-white shadow-xl rounded-xl border border-gray-200">
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002-2v-4a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2m-6 0h.01M6 20h.01M18 20h.01"></path></svg>
             <h3 class="mt-4 text-xl font-semibold text-gray-900">

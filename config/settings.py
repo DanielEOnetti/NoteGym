@@ -1,68 +1,58 @@
 import os
 from pathlib import Path
-import environ  # Importado para gestionar variables de entorno
+import environ  
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --- Configuración de django-environ (CLAVE) ---
-# https://django-environ.readthedocs.io/en/latest/
+
 env = environ.Env(
-    # set casting, default value
     DEBUG=(bool, False)
 )
 
-# Lee el archivo .env si existe (para desarrollo local)
+
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-# --- Variables de Seguridad (Leídas desde el entorno) ---
-# Render generará esto automáticamente
+
 SECRET_KEY = env('SECRET_KEY')
 
-# Render lo pondrá en False. Tu .env local debe tener DEBUG=True
+
 DEBUG = env.bool('DEBUG')
 
-# Render añadirá 'notegym.onrender.com' automáticamente.
-# Añade tu dominio personalizado aquí si lo tienes.
+
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-# Render te da esta variable de entorno automáticamente
+
 RENDER_EXTERNAL_HOSTNAME = env.str('RENDER_EXTERNAL_HOSTNAME', default=None)
 
-# Si esa variable existe (es decir, estamos en Render)...
+
 if RENDER_EXTERNAL_HOSTNAME:
-    # ...la añadimos a la lista.
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 
-# Application definition
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-
-    # --- Whitenoise (CLAVE CORREGIDA) ---
-    # La *aplicación* va aquí
-    "whitenoise", 
     "anymail",
-
     "django.contrib.staticfiles",
+    "django_vite",
     "core",
     "tailwind",
     "theme",
-    # "django_browser_reload", # Se añade condicionalmente más abajo
     'django.contrib.humanize',
+    'rest_framework',
+    
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # --- Whitenoise (CLAVE) ---
-    # Debe ir justo después de SecurityMiddleware
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -72,8 +62,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# --- Lógica condicional para DEBUG ---
-# django_browser_reload solo debe correr en desarrollo
+
 if DEBUG:
     INSTALLED_APPS.append("django_browser_reload")
     MIDDLEWARE.insert(
@@ -103,7 +92,6 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # --- Base de Datos (CLAVE) ---
 
-# Por defecto, usamos SQLite para desarrollo local (si DEBUG=True)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -111,14 +99,12 @@ DATABASES = {
     }
 }
 
-# Si NO estamos en DEBUG (es decir, en producción en Render)...
+
 if not DEBUG:
-    # ...entonces lee la DATABASE_URL que Render provee.
     DATABASES['default'] = env.db()
 
 
-# Password validation
-# ... (tu configuración está bien) ...
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -127,20 +113,18 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# ... (tu configuración está bien) ...
+
 LANGUAGE_CODE = "es"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
 
-# --- Archivos Estáticos (CSS, JavaScript, Images) (CLAVE) ---
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# --- ESTO SÍ ES CORRECTO ---
-# El *motor de almacenamiento* va aquí
+
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 STATICFILES_DIRS = [
@@ -148,54 +132,56 @@ STATICFILES_DIRS = [
 ]
 
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # --- Configuración de Tailwind ---
 TAILWIND_APP_NAME = 'theme'
 INTERNAL_IPS = ["127.0.0.1"]
-
-# ¡ELIMINADO! Esta ruta de Windows no funcionará en Render (Linux).
-# El build.sh se encargará de instalar y correr npm.
-# NPM_BIN_PATH = r"C:\Users\Melio\AppData\Roaming\npm\npm.cmd"
-
-
-# --- Archivos Media (Subidos por usuarios) ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-# Advertencia: Render tiene un sistema de archivos efímero.
-# Los archivos subidos a MEDIA_ROOT se borrarán en cada despliegue.
-# La solución permanente es usar S3 (Opción 2).
+
 
 if not DEBUG:
-    # --- Configuración de Producción (Usa la API de Brevo) ---
     ANYMAIL = {
-        # El backend de Brevo (usa la API, no SMTP)
         "SEND_DEFAULTS": {
             "ESP_EXTRA": {"sender": {"name": "Notegym"}},
         },
         "BREVO_API_KEY": env('ANYMAIL_BREVO_API_KEY'),
     }
     EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
-    DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL') # El email verificado de Brevo
+    DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL') 
 else:
-    # --- Configuración de Desarrollo (Usa la Consola) ---
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     DEFAULT_FROM_EMAIL = 'danieleonetti12@gmail.com'
 
 if not DEBUG:
-    # 1. Fuerza que las cookies de sesión solo se envíen por HTTPS
+   
     SESSION_COOKIE_SECURE = True
-
-    # 2. Fuerza que la cookie de CSRF solo se envíe por HTTPS
     CSRF_COOKIE_SECURE = True
-
-    # 3. Redirige todo el tráfico HTTP a HTTPS
     SECURE_SSL_REDIRECT = True
-
-    # (Opcional pero recomendado) Configuración HSTS
-    # Le dice al navegador que "recuerde" usar solo HTTPS
     SECURE_HSTS_SECONDS = 31536000  # 1 año
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+
+
+# --- CONFIGURACIÓN DE DJANGO-VITE ---
+
+# 1. El puerto del servidor de desarrollo de Vite (debe coincidir con vite.config.js)
+DJANGO_VITE_DEV_SERVER_PORT = 5173
+
+# 2. Dónde buscar el 'manifest.json' (debe coincidir con 'outDir' en vite.config.js)
+DJANGO_VITE_MANIFEST_PATH = BASE_DIR / 'static' / 'dist' / 'manifest.json'
+
+# 3. (Opcional pero recomendado) Nombre del Manifest
+DJANGO_VITE_MANIFEST_FILENAME = 'manifest.json'
+
+# 4. (Opcional) Dónde están los archivos estáticos de Vite
+DJANGO_VITE_ASSETS_PATH = BASE_DIR / 'static' / 'dist'
+
+# 5. (Importante) Incluir los archivos de Vite en tus estáticos
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+    DJANGO_VITE_ASSETS_PATH, # <-- AÑADE ESTA LÍNEA
+]
