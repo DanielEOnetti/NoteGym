@@ -1,39 +1,33 @@
 import os
 from pathlib import Path
-import environ  
+import environ 
 
-
+# --- Configuración Inicial ---
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 env = environ.Env(
     DEBUG=(bool, False)
 )
 
-
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
-
 
 SECRET_KEY = env('SECRET_KEY')
 
-
+# DEBUG se lee desde tu archivo .env
+# (Asegúrate de que .env tenga DEBUG=True para desarrollo local)
 DEBUG = env.bool('DEBUG')
-
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-
 RENDER_EXTERNAL_HOSTNAME = env.str('RENDER_EXTERNAL_HOSTNAME', default=None)
-
-
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
+# --- URLs de Autenticación ---
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-
-
+# --- Aplicaciones ---
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -42,18 +36,22 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "anymail",
     "django.contrib.staticfiles",
-    "django_vite",
-    "core",
+    'django.contrib.humanize',
+    
+    # Apps de Terceros
+    'rest_framework',
     "tailwind",
     "theme",
-    'django.contrib.humanize',
-    'rest_framework',
-    
+    "django_vite",
+
+    # Tus Apps
+    "core",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    # Whitenoise debe estar aquí, justo después de SecurityMiddleware
+    "whitenoise.middleware.WhiteNoiseMiddleware", 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -62,7 +60,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-
+# Añadir 'django_browser_reload' solo si estamos en DEBUG
 if DEBUG:
     INSTALLED_APPS.append("django_browser_reload")
     MIDDLEWARE.insert(
@@ -89,9 +87,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-
-# --- Base de Datos (CLAVE) ---
-
+# --- Base de Datos ---
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -99,12 +95,7 @@ DATABASES = {
     }
 }
 
-
-if not DEBUG:
-    DATABASES['default'] = env.db()
-
-
-
+# --- Configuración de Contraseñas ---
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -112,37 +103,30 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
-
+# --- Internacionalización ---
 LANGUAGE_CODE = "es"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-
-
-STATIC_URL = "static/"
+# --- Archivos Estáticos (Configuración Base) ---
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# --- Media Files ---
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # --- Configuración de Tailwind ---
 TAILWIND_APP_NAME = 'theme'
 INTERNAL_IPS = ["127.0.0.1"]
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
+
+# --- Configuración de Producción vs Desarrollo (¡Importante!) ---
 
 if not DEBUG:
+    # --- Configuración de Email (Solo Producción) ---
     ANYMAIL = {
         "SEND_DEFAULTS": {
             "ESP_EXTRA": {"sender": {"name": "Notegym"}},
@@ -151,12 +135,12 @@ if not DEBUG:
     }
     EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
     DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL') 
-else:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'danieleonetti12@gmail.com'
+    
+    # --- Configuración de Estáticos (Solo Producción) ---
+    # ¡AQUÍ ESTÁ EL ARREGLO! Esto solo se ejecuta en producción.
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-if not DEBUG:
-   
+    # --- Configuración de Seguridad (Solo Producción) ---
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
@@ -164,24 +148,20 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
+    # La base de datos de Render
+    DATABASES['default'] = env.db()
+
+else:
+    # --- Configuración de Email (Solo Desarrollo) ---
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    DEFAULT_FROM_EMAIL = 'danieleonetti12@gmail.com'
 
 
-# --- CONFIGURACIÓN DE DJANGO-VITE ---
-
-# 1. El puerto del servidor de desarrollo de Vite (debe coincidir con vite.config.js)
+# --- DJANGO-VITE CONFIGURATION ---
+DJANGO_VITE_DEV_MODE = DEBUG
+DJANGO_VITE_DEV_SERVER_HOST = 'localhost'
 DJANGO_VITE_DEV_SERVER_PORT = 5173
-
-# 2. Dónde buscar el 'manifest.json' (debe coincidir con 'outDir' en vite.config.js)
-DJANGO_VITE_MANIFEST_PATH = BASE_DIR / 'static' / 'dist' / 'manifest.json'
-
-# 3. (Opcional pero recomendado) Nombre del Manifest
-DJANGO_VITE_MANIFEST_FILENAME = 'manifest.json'
-
-# 4. (Opcional) Dónde están los archivos estáticos de Vite
-DJANGO_VITE_ASSETS_PATH = BASE_DIR / 'static' / 'dist'
-
-# 5. (Importante) Incluir los archivos de Vite en tus estáticos
+DJANGO_VITE_STATIC_URL_PREFIX = ''
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-    DJANGO_VITE_ASSETS_PATH, # <-- AÑADE ESTA LÍNEA
+    BASE_DIR / 'static',
 ]
