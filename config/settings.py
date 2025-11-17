@@ -5,20 +5,25 @@ import environ
 # --- Configuración Inicial ---
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Inicializa django-environ
 env = environ.Env(
-    DEBUG=(bool, False)
+    # Define el valor por defecto para DEBUG
+    DEBUG=(bool, False),
+    # Define el valor por defecto para la DB: SQLite local. 
+    # Si DATABASE_URL existe (en Render), se usará esa conexión.
+    DATABASE_URL=(str, f'sqlite:///{BASE_DIR / "db.sqlite3"}') 
 )
 
+# Lee las variables del archivo .env (solo para desarrollo local)
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 SECRET_KEY = env('SECRET_KEY')
-
-# DEBUG se lee desde tu archivo .env
-# (Asegúrate de que .env tenga DEBUG=True para desarrollo local)
+# DEBUG se lee desde tu archivo .env o usa el valor por defecto (False)
 DEBUG = env.bool('DEBUG')
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
+# Añade el hostname de Render si existe
 RENDER_EXTERNAL_HOSTNAME = env.str('RENDER_EXTERNAL_HOSTNAME', default=None)
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
@@ -63,6 +68,7 @@ MIDDLEWARE = [
 # Añadir 'django_browser_reload' solo si estamos en DEBUG
 if DEBUG:
     INSTALLED_APPS.append("django_browser_reload")
+    # Insertar el middleware después de SecurityMiddleware para mejor compatibilidad
     MIDDLEWARE.insert(
         MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
         "django_browser_reload.middleware.BrowserReloadMiddleware",
@@ -87,13 +93,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# --- Base de Datos ---
+# --- Base de Datos (¡Configuración UNIFICADA y lista para Render!) ---
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    # Lee la DB desde el entorno (PostgreSQL en Render o SQLite local)
+    'default': env.db(),
 }
+
+# Configuración obligatoria de SSL para Render/PostgreSQL
+# Esta sección se aplica solo si se está usando una conexión PostgreSQL
+if 'OPTIONS' not in DATABASES['default']:
+    DATABASES['default']['OPTIONS'] = {}
+    
+DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 
 # --- Configuración de Contraseñas ---
 AUTH_PASSWORD_VALIDATORS = [
@@ -109,22 +120,26 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# --- Archivos Estáticos (Configuración Base) ---
+# --- Archivos Estáticos y Media ---
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- Media Files ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# --- Directorios de Estáticos Adicionales ---
+# Necesario para django-vite/tailwind/archivos estáticos globales
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # --- Configuración de Tailwind ---
 TAILWIND_APP_NAME = 'theme'
 INTERNAL_IPS = ["127.0.0.1"]
 
 
-# --- Configuración de Producción vs Desarrollo (¡Importante!) ---
-
+# --- Configuración de Producción (if not DEBUG) ---
 if not DEBUG:
     # --- Configuración de Email (Solo Producción) ---
     ANYMAIL = {
@@ -137,7 +152,7 @@ if not DEBUG:
     DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL') 
     
     # --- Configuración de Estáticos (Solo Producción) ---
-    # ¡AQUÍ ESTÁ EL ARREGLO! Esto solo se ejecuta en producción.
+    # Esto es el corazón de Whitenoise para producción
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
     # --- Configuración de Seguridad (Solo Producción) ---
@@ -147,9 +162,6 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000  # 1 año
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-
-    # La base de datos de Render
-    DATABASES['default'] = env.db()
 
 else:
     # --- Configuración de Email (Solo Desarrollo) ---
@@ -162,6 +174,3 @@ DJANGO_VITE_DEV_MODE = DEBUG
 DJANGO_VITE_DEV_SERVER_HOST = 'localhost'
 DJANGO_VITE_DEV_SERVER_PORT = 5173
 DJANGO_VITE_STATIC_URL_PREFIX = ''
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
