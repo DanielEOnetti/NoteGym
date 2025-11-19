@@ -2,7 +2,7 @@
 
 ## Descripción del Proyecto
 
-Gym Notebook es una aplicación web desarrollada con Django que facilita la gestión y el seguimiento de rutinas de entrenamiento personalizadas. Está diseñada para conectar a entrenadores con sus atletas, permitiendo a los entrenadores crear y asignar planes de ejercicio detallados, y a los atletas registrar su rendimiento, seguir su progreso y visualizar sus marcas personales.
+Gym Notebook es una aplicación web desarrollada con Django y React que facilita la gestión y el seguimiento de rutinas de entrenamiento personalizadas. Está diseñada para conectar a entrenadores con sus atletas, permitiendo a los entrenadores crear y asignar planes de ejercicio detallados, y a los atletas registrar su rendimiento, seguir su progreso y visualizar sus marcas personales.
 
 ## Características Principales
 
@@ -25,35 +25,34 @@ Gym Notebook es una aplicación web desarrollada con Django que facilita la gest
 
 ## Tecnologías Utilizadas
 
-*   **Backend:** Python, Django (Framework Web)
+*   **Backend:** Python, Django, Django REST Framework
+*   **Frontend:** JavaScript, React, Vite, Tailwind CSS
 *   **Base de Datos:** SQLite (por defecto para desarrollo)
-*   **Frontend:** HTML, CSS (con Tailwind CSS para estilos), JavaScript
-*   **Utilidades:** `django-browser-reload` (para recarga automática en desarrollo)
 
-## Estructura del Proyecto (Alto Nivel)
+## Estructura del Proyecto
 
 *   `config/`: Configuración global del proyecto Django (settings, URLs principales).
-*   `core/`: Aplicación principal que contiene los modelos de datos, vistas, URLs específicas de la aplicación y formularios.
-*   `templates/`: Archivos HTML para la interfaz de usuario.
+*   `core/`: Aplicación principal de Django que contiene modelos, vistas, APIs y lógica de negocio.
+*   `frontend/`: Código fuente de la aplicación de React para los componentes dinámicos.
+*   `templates/`: Plantillas HTML renderizadas por Django.
 *   `theme/`: Aplicación Django para la gestión de activos estáticos y configuración de Tailwind CSS.
+*   `package.json` y `vite.config.js`: Configuración del frontend (dependencias y servidor de desarrollo de Vite).
 
 ## Configuración e Instalación
 
-Para poner en marcha el proyecto en tu entorno local, sigue los siguientes pasos:
+Para poner en marcha el proyecto en tu entorno local, sigue los siguientes pasos.
 
 ### Prerrequisitos
 *   Python 3.x
-*   pip (gestor de paquetes de Python)
-*   npm (gestor de paquetes de Node.js, necesario para Tailwind CSS)
+*   Node.js y npm (gestor de paquetes de Node.js)
 
-### Pasos de Instalación
+### 1. Configuración del Backend (Django)
 
 1.  **Clonar el Repositorio:**
     ```bash
     git clone <URL_DEL_REPOSITORIO>
     cd gym_notebook
     ```
-    *(Reemplaza `<URL_DEL_REPOSITORIO>` con la URL real de tu repositorio)*
 
 2.  **Crear y Activar un Entorno Virtual:**
     ```bash
@@ -65,18 +64,11 @@ Para poner en marcha el proyecto en tu entorno local, sigue los siguientes pasos
     ```
 
 3.  **Instalar Dependencias de Python:**
-    Instala las librerías de Django y otras dependencias. Si tienes un `requirements.txt`, úsalo:
     ```bash
     pip install -r requirements.txt
     ```
-    Si no, instala las principales manualmente:
-    ```bash
-    pip install Django django-browser-reload tailwindcss
-    ```
-    *(Nota: Es recomendable generar un `requirements.txt` con `pip freeze > requirements.txt`)*
 
-4.  **Configurar la Base de Datos:**
-    Aplica las migraciones para crear las tablas en la base de datos SQLite:
+4.  **Aplicar Migraciones de la Base de Datos:**
     ```bash
     python manage.py migrate
     ```
@@ -86,32 +78,34 @@ Para poner en marcha el proyecto en tu entorno local, sigue los siguientes pasos
     ```bash
     python manage.py createsuperuser
     ```
-    Sigue las instrucciones para crear el usuario.
 
-6.  **Configuración de Frontend (Tailwind CSS):**
-    Navega al directorio `theme/static_src` e instala las dependencias de Node.js:
+### 2. Configuración del Frontend (React + Vite)
+
+1.  **Instalar Dependencias de Node.js:**
+    En el directorio raíz del proyecto, ejecuta:
     ```bash
-    cd theme/static_src
     npm install
     ```
-    Luego, vuelve al directorio raíz del proyecto:
-    ```bash
-    cd ../../
-    ```
-    Para compilar los estilos de Tailwind CSS en desarrollo (se recomienda ejecutarlo en una terminal separada):
-    ```bash
-    npm run dev # o npm run watch si está configurado
-    ```
-    Para compilar los estilos para producción:
-    ```bash
-    npm run build
-    ```
 
-7.  **Ejecutar el Servidor de Desarrollo:**
+## Cómo Ejecutar el Proyecto
+
+Para trabajar en el entorno de desarrollo, necesitas ejecutar tanto el servidor de Django como el de Vite simultáneamente.
+
+1.  **Iniciar el Servidor de Backend (Django):**
     ```bash
     python manage.py runserver
     ```
-    La aplicación estará disponible en `http://127.0.0.1:8000/`.
+    El backend estará disponible en `http://127.0.0.1:8000/`.
+
+2.  **Iniciar el Servidor de Frontend (Vite):**
+    Abre una **nueva terminal** y, desde el directorio raíz, ejecuta:
+    ```bash
+    npm run dev
+    ```
+    Vite se encargará de compilar los assets del frontend y servirlos para que Django los pueda utilizar.
+
+3.  **Acceder a la Aplicación:**
+    Abre tu navegador y ve a `http://127.0.0.1:8000/`.
 
 ## Uso
 
