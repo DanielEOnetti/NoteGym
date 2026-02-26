@@ -418,11 +418,12 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
         if series_para_crear:
             SerieEjercicio.objects.bulk_create(series_para_crear)
 
-    def get_success_url(self):
-        # Redirigir al detalle del mesociclo si existe, si no al dashboard
-        if self.object.mesociclo:
-             return reverse("mesociclo_detalle", kwargs={"pk": self.object.mesociclo.pk})
-        return reverse("dashboard")
+        def get_success_url(self):
+    # Si tras la edición ahora tiene mesociclo, redirigir allí para ver cómo queda el mapa
+            if self.object.mesociclo:
+                return reverse("mesociclo_detalle", kwargs={"pk": self.object.mesociclo.pk})
+            else:
+                return reverse("dashboard")
 
 
 class EntrenamientoDetailView(LoginRequiredMixin, DetailView):

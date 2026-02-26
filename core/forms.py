@@ -42,48 +42,30 @@ TEXTAREA_CLASSES = INPUT_CLASSES + " h-24"
 
 
 class EntrenamientoForm(forms.ModelForm):
-    
     class Meta:
         model = Entrenamiento
-        fields = ["atleta", "nombre", "notas"]
+        fields = ["atleta", "mesociclo", "nombre", "semana", "dia_orden", "notas"] # Añadimos campos de organización
         widgets = {
             "atleta": forms.Select(attrs={"class": SELECT_CLASSES}),
+            "mesociclo": forms.Select(attrs={"class": SELECT_CLASSES}),
             "nombre": forms.TextInput(attrs={"class": INPUT_CLASSES}),
+            "semana": forms.NumberInput(attrs={"class": INPUT_CLASSES, "min": "1"}),
+            "dia_orden": forms.NumberInput(attrs={"class": INPUT_CLASSES, "min": "1"}),
             "notas": forms.Textarea(attrs={"class": TEXTAREA_CLASSES, "rows": 4}),
-        }
-        labels = {
-            "nombre": "Nombre del Entrenamiento ",
-            "atleta": "Atleta ",
-            "notas": "📝 Notas del Entrenamiento",
         }
 
     def __init__(self, *args, **kwargs):
-        # 1. Extrae el 'user' que pasamos desde la CreateView
-        user = kwargs.pop('user', None) 
-        
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-
-        # 2. Comprueba que el usuario está logueado y tiene perfil
         if user and hasattr(user, 'perfil'):
-            
-            perfil_entrenador = user.perfil 
-            
-            # 3. Filtra el queryset de 'atleta'
+            perfil = user.perfil
+            # Solo mostrar mesociclos que pertenecen a este entrenador
+            self.fields['mesociclo'].queryset = Mesociclo.objects.filter(entrenador=perfil)
+            # Solo mostrar atletas vinculados
             self.fields['atleta'].queryset = PerfilUsuario.objects.filter(
-                Q(tipo='atleta'), # Condición 1: Debe ser un atleta
-                
-                # Condición 2 (OR): O es mi atleta O no tiene entrenador
-                Q(entrenador=perfil_entrenador) | 
-                Q(entrenador__isnull=True)     
-            
-            ).distinct().order_by('nombre')
-
-        else:
-            # si no hay user, solo muestra atletas
-            # (Útil si un SuperAdmin entra desde /admin)
-            self.fields['atleta'].queryset = PerfilUsuario.objects.filter(
-                tipo='atleta'
-            ).order_by('nombre')
+                Q(tipo='atleta'),
+                Q(entrenador=perfil) | Q(entrenador__isnull=True)
+            ).distinct()
 
 # ========================================================================
 # Formulario de Detalle de Entrenamiento
