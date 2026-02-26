@@ -17,9 +17,11 @@
             </div>
         </div>
         
+        {% if request.user.perfil.tipo == 'entrenador' %}
         <a href="{% url 'entrenamiento_crear' %}?mesociclo={{ mesociclo.id }}" class="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             + Añadir Sesión
         </a>
+        {% endif %}
     </div>
 
     <div class="space-y-8">
@@ -36,30 +38,39 @@
                     <div>
                         <div class="flex justify-between items-start mb-2">
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">DÍA {{ entreno.dia_orden }}</span>
-                            {% if semana_num == 1 %} 
-                            <form action="{% url 'entrenamiento_clonar' entreno.pk %}" method="POST" onsubmit="return confirm('¿Replicar esta estructura a las semanas siguientes?');">
-                                {% csrf_token %}
-                                <button type="submit" title="Replicar a todo el mes" class="text-gray-400 hover:text-purple-600 transition-colors">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-                                </button>
-                            </form>
-                            {% endif %}
+                            
+                            {% if request.user.perfil.tipo == 'entrenador' %} 
+<form action="{% url 'entrenamiento_clonar' entreno.pk %}" method="POST" onsubmit="return confirm('¿Crear la Semana {{ semana_num|add:"1" }} basada en esta sesión?');">
+    {% csrf_token %}
+    <button type="submit" title="Clonar a la siguiente semana" class="text-gray-400 hover:text-purple-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+    </button>
+</form>
+{% endif %}
                         </div>
                         
                         <h3 class="font-bold text-gray-800 text-lg mb-1">{{ entreno.nombre }}</h3>
                         <p class="text-xs text-gray-500 mb-4">{{ entreno.detalles.count }} ejercicios</p>
                     </div>
 
-                    <a href="{% url 'entrenamiento_update' entreno.pk %}" class="w-full text-center bg-white border border-gray-300 hover:border-blue-500 text-gray-700 hover:text-blue-600 font-medium py-2 rounded transition-colors text-sm">
-                        {% if entreno.completado %}Ver Resultados{% else %}Planificar / Editar{% endif %}
-                    </a>
+                    {% if request.user.perfil.tipo == 'entrenador' %}
+                        <a href="{% url 'entrenamiento_update' entreno.pk %}" class="w-full text-center bg-white border border-gray-300 hover:border-blue-500 text-gray-700 hover:text-blue-600 font-medium py-2 rounded transition-colors text-sm">
+                            Planificar / Editar
+                        </a>
+                    {% else %}
+                        <a href="{% url 'detalle_rutina' entreno.pk %}" class="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded transition-colors text-sm shadow-sm flex items-center justify-center gap-2">
+                            <span>💪</span> Entrenar
+                        </a>
+                    {% endif %}
                 </div>
                 {% endfor %}
 
+                {% if request.user.perfil.tipo == 'entrenador' %}
                 <a href="{% url 'entrenamiento_crear' %}?mesociclo={{ mesociclo.id }}&semana={{ semana_num }}" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg p-4 text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors h-full min-h-[140px]">
                     <span class="text-2xl mb-1">+</span>
                     <span class="text-sm font-medium">Añadir Día</span>
                 </a>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

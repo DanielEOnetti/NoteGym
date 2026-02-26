@@ -130,10 +130,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 # -------------------------------------------------
 
 class EntrenamientoCreateView(LoginRequiredMixin, CreateView):
-    """
-    Vista que permite al entrenador crear un nuevo entrenamiento.
-    Utiliza un formset para asociar múltiples ejercicios a una misma rutina.
-    """
     model = Entrenamiento
     form_class = EntrenamientoForm
     template_name = "core/entrenamientos/crear.html"
@@ -143,8 +139,29 @@ class EntrenamientoCreateView(LoginRequiredMixin, CreateView):
         kwargs['user'] = self.request.user
         return kwargs
 
+    def get_initial(self):
+        """
+        Pre-rellena el formulario con datos de la URL si existen.
+        Ej: Si vienes del mesociclo, ya seleccionamos al atleta automáticamente.
+        """
+        initial = super().get_initial()
+        mesociclo_id = self.request.GET.get('mesociclo')
+        
+        if mesociclo_id:
+            try:
+                mesociclo = Mesociclo.objects.get(pk=mesociclo_id)
+                # Pre-seleccionamos al atleta del mesociclo
+                initial['atleta'] = mesociclo.atleta
+            except Mesociclo.DoesNotExist:
+                pass
+        return initial
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # Pasamos los parámetros al contexto para usarlos en el template si fuera necesario
+        context['mesociclo_id'] = self.request.GET.get('mesociclo')
+        context['semana'] = self.request.GET.get('semana')
+        
         if self.request.POST:
             context["detalle_formset"] = DetalleEntrenamientoFormSet(
                 self.request.POST, prefix='detalles'
@@ -154,11 +171,30 @@ class EntrenamientoCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        """
-        Guarda el entrenamiento y los detalles asociados en una transacción atómica
-        para mantener la consistencia de la base de datos.
-        """
         form.instance.entrenador = self.request.user.perfil
+        
+        # --- LÓGICA DE VINCULACIÓN AL MESOCICLO ---
+        mesociclo_id = self.request.GET.get('mesociclo')
+        semana = self.request.GET.get('semana')
+        
+        if mesociclo_id:
+            mesociclo = get_object_or_404(Mesociclo, pk=mesociclo_id)
+            form.instance.mesociclo = mesociclo
+            
+            # Si nos pasan la semana, la usamos. Si no, default a 1.
+            if semana:
+                form.instance.semana = int(semana)
+            
+            # Calcular el 'dia_orden' automáticamente
+            # Buscamos cuántos entrenos hay ya en esa semana y sumamos 1
+            ultimo_orden = Entrenamiento.objects.filter(
+                mesociclo=mesociclo,
+                semana=form.instance.semana
+            ).aggregate(max_orden=Max('dia_orden'))['max_orden'] or 0
+            
+            form.instance.dia_orden = ultimo_orden + 1
+        # -------------------------------------------
+
         context = self.get_context_data()
         detalle_formset = context["detalle_formset"]
 
@@ -167,12 +203,15 @@ class EntrenamientoCreateView(LoginRequiredMixin, CreateView):
                 self.object = form.save()
                 detalle_formset.instance = self.object
                 detalle_formset.save()
+            
+            # Si venimos de un mesociclo, quizás queramos volver allí o configurar series
+            # Por ahora mantenemos tu flujo de ir a configurar series
             return redirect('configurar_series', pk=self.object.pk)
+            
         return self.render_to_response(self.get_context_data(form=form))
 
     def get_success_url(self):
         return reverse_lazy('configurar_series', kwargs={'pk': self.object.pk})
-
 
 class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
     model = Entrenamiento
@@ -968,31 +1007,38 @@ class MesocicloDetailView(LoginRequiredMixin, DetailView):
 @login_required
 def clonar_semana_view(request, pk):
     """
-    Vista funcional para ejecutar la acción de "Replicar Estructura".
-    Recibe el ID de un Entrenamiento (origen) y crea las semanas siguientes.
+    MODIFICADO: Ahora solo clona la semana actual a la INMEDIATAMENTE siguiente.
+    Esto permite desbloquear el entrenamiento semana a semana.
     """
     entrenamiento = get_object_or_404(Entrenamiento, pk=pk)
     
-    # Seguridad: Solo el entrenador dueño puede clonar
+    # Seguridad
     if entrenamiento.entrenador != request.user.perfil:
         messages.error(request, "No tienes permiso.")
         return redirect('dashboard')
 
     try:
-        # LÓGICA: Si estoy en la semana 1 y el mesociclo es de 4 semanas,
-        # creo las semanas 2, 3 y 4.
         semana_actual = entrenamiento.semana
         total_semanas = entrenamiento.mesociclo.semanas_objetivo
         
-        if semana_actual >= total_semanas:
-            messages.warning(request, "Ya estás en la última semana, no se puede proyectar más.")
+        # Calculamos solo la siguiente semana
+        siguiente_semana = semana_actual + 1
+        
+        if siguiente_semana > total_semanas:
+            messages.warning(request, f"Ya estás en la última semana ({total_semanas}), no se puede avanzar más.")
         else:
-            semanas_destino = range(semana_actual + 1, total_semanas + 1)
-            replicar_planificacion_semanal(entrenamiento, semanas_destino)
-            messages.success(request, f"✅ Estructura replicada para las semanas {list(semanas_destino)}")
+            # Pasamos una lista con UN solo número: la siguiente semana
+            semanas_destino = [siguiente_semana]
+            
+            # Reutilizamos tu servicio, que ya es inteligente y evita duplicados
+            nuevos = replicar_planificacion_semanal(entrenamiento, semanas_destino)
+            
+            if nuevos:
+                messages.success(request, f"✅ Semana {siguiente_semana} generada correctamente.")
+            else:
+                messages.info(request, f"La Semana {siguiente_semana} ya existía o no se pudo crear.")
             
     except Exception as e:
         messages.error(request, f"Error al clonar: {e}")
 
-    # Volver al detalle del mesociclo
     return redirect('mesociclo_detalle', pk=entrenamiento.mesociclo.pk)

@@ -145,24 +145,30 @@ class EjercicioForm(forms.ModelForm):
 # ------------------------------------------------------------------------
 # 1. SeriePrescripcionForm
 # ------------------------------------------------------------------------
+# core/forms.py
+
 class SeriePrescripcionForm(forms.ModelForm):
     class Meta:
         model = SerieEjercicio
-        fields = ["numero_serie", "repeticiones_o_rango"] 
+        fields = ["numero_serie", "repeticiones_o_rango", "rpe_prescrito"] # <-- Añadido
         widgets = {
             "numero_serie": forms.HiddenInput(), 
             "repeticiones_o_rango": forms.TextInput(attrs={
                 "placeholder": "Ej: 10 o 8-12",
                 "class": INPUT_CLASSES 
             }),
+            "rpe_prescrito": forms.NumberInput(attrs={ # <-- Nuevo widget
+                "placeholder": "RPE",
+                "class": INPUT_CLASSES,
+                "step": "0.5",
+                "min": "1",
+                "max": "10"
+            }),
         }
         labels = {
-            "repeticiones_o_rango": "Repeticiones / Rango *", 
+            "repeticiones_o_rango": "Repeticiones / Rango *",
+            "rpe_prescrito": "RPE Objetivo",
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['numero_serie'].required = False
 
 # ========================================================================
 # Inline FormSet para Prescripción de Series
@@ -182,7 +188,7 @@ class SerieRegistroForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         """
-        1. Pone los valores de la sesión anterior (peso/reps) en el placeholder.
+        1. Pone los valores de la sesión anterior (peso/reps/rPE) en el placeholder.
         2. Vacía el valor 'initial' del campo para que aparezca vacío.
         """
         super().__init__(*args, **kwargs)
@@ -192,28 +198,23 @@ class SerieRegistroForm(forms.ModelForm):
             # --- Lógica para 'peso_real' ---
             if self.instance.peso_real is not None:
                 peso_val = self.instance.peso_real
-                
-                formatted_peso_str = ""
-                if peso_val == peso_val.to_integral_value():
-                    formatted_peso_str = str(peso_val.to_integral_value()) 
-                else:
-                    formatted_peso_str = str(peso_val) 
-
-                # 1. Asignamos el valor anterior al placeholder
+                formatted_peso_str = str(peso_val.to_integral_value()) if peso_val == peso_val.to_integral_value() else str(peso_val)
                 self.fields['peso_real'].widget.attrs['placeholder'] = f"{formatted_peso_str} kg"
-                
-                # 2. Vaciamos el valor inicial del campo
                 self.initial['peso_real'] = None
 
             # --- Lógica para 'repeticiones_reales' ---
             if self.instance.repeticiones_reales is not None:
                 reps_val = self.instance.repeticiones_reales
-                
-                # 1. Asignamos el valor anterior al placeholder
                 self.fields['repeticiones_reales'].widget.attrs['placeholder'] = f"{reps_val}"
-                
-                # 2. Vaciamos el valor inicial del campo
                 self.initial['repeticiones_reales'] = None
+
+            # --- NUEVO: Lógica para 'rpe_real' ---
+            if self.instance.rpe_real is not None:
+                rpe_val = self.instance.rpe_real
+                # Formatear para quitar el .0 si es entero (ej: 8.0 -> 8)
+                formatted_rpe = str(rpe_val.to_integral_value()) if rpe_val == rpe_val.to_integral_value() else str(rpe_val)
+                self.fields['rpe_real'].widget.attrs['placeholder'] = f"RPE {formatted_rpe}"
+                self.initial['rpe_real'] = None
 
     class Meta:
         model = SerieEjercicio
@@ -222,6 +223,7 @@ class SerieRegistroForm(forms.ModelForm):
             "numero_serie",
             "peso_real",
             "repeticiones_reales",
+            "rpe_real", 
         ]
 
         input_classes = (
@@ -240,27 +242,25 @@ class SerieRegistroForm(forms.ModelForm):
         widgets = {
             "detalle_entrenamiento": forms.HiddenInput(),
             "numero_serie": forms.HiddenInput(),
-            
-            "peso_real": forms.NumberInput(attrs={
-                "step": "0.25", 
-                "placeholder": "Peso (kg)", 
-                "class": input_classes
-            }),
-            
-            "repeticiones_reales": forms.NumberInput(attrs={
-                "placeholder": "Reps", 
-                "class": input_classes
+            "peso_real": forms.NumberInput(attrs={"step": "0.25", "placeholder": "Peso", "class": input_classes}),
+            "repeticiones_reales": forms.NumberInput(attrs={"placeholder": "Reps", "class": input_classes}),
+            "rpe_real": forms.NumberInput(attrs={
+                "step": "0.5", 
+                "placeholder": "RPE", 
+                "class": input_classes,
+                "min": "1",
+                "max": "10"
             }),
         }
         
         labels = {
             "peso_real": "Peso",
             "repeticiones_reales": "Reps",
+            "rpe_real": "RPE",
         }
 
     def clean_peso_real(self):
         peso = self.cleaned_data.get('peso_real')
-        
         if peso is None:
             return peso
 
@@ -276,37 +276,26 @@ class SerieRegistroForm(forms.ModelForm):
 
         if not residuo.is_zero():
              raise ValidationError(
-                 f"El peso debe ser un múltiplo de {INCREMENTO_MINIMO} (ej. 17.0, 17.25, 17.5, 17.75). "
-                 "Verifica tus incrementos de peso."
+                 f"El peso debe ser un múltiplo de {INCREMENTO_MINIMO} (ej. 17.0, 17.25, 17.5, 17.75)."
              )
-        
-        if peso == peso.to_integral_value():
-            return peso.to_integral_value()
-            
-        return peso
+        return peso.to_integral_value() if peso == peso.to_integral_value() else peso
 
     def clean(self):
         cleaned_data = super().clean()
         
-        # 'self.instance' es el objeto SerieEjercicio original 
         if not self.instance or not self.instance.pk:
             return cleaned_data
 
-        # --- Lógica para 'peso_real' ---
-        # Si el campo 'peso_real' se envió vacío...
-        if cleaned_data.get('peso_real') is None:
-            # ...y el objeto original si tenía un valor...
-            if self.instance.peso_real is not None:
-                # restaurar el valor original
-                cleaned_data['peso_real'] = self.instance.peso_real
+        # Restaurar valores originales si se envían vacíos (para no perder datos al editar)
+        if cleaned_data.get('peso_real') is None and self.instance.peso_real is not None:
+            cleaned_data['peso_real'] = self.instance.peso_real
 
-        # --- Lógica para 'repeticiones_reales' ---
-        # Si el campo 'repeticiones_reales' se envió vacío...
-        if cleaned_data.get('repeticiones_reales') is None:
-            # ...y el objeto original si tenía un valor...
-            if self.instance.repeticiones_reales is not None:
-                # restaurar el valor original
-                cleaned_data['repeticiones_reales'] = self.instance.repeticiones_reales
+        if cleaned_data.get('repeticiones_reales') is None and self.instance.repeticiones_reales is not None:
+            cleaned_data['repeticiones_reales'] = self.instance.repeticiones_reales
+
+        # --- NUEVO: Restaurar 'rpe_real' si se envía vacío ---
+        if cleaned_data.get('rpe_real') is None and self.instance.rpe_real is not None:
+            cleaned_data['rpe_real'] = self.instance.rpe_real
 
         return cleaned_data
 
@@ -555,8 +544,11 @@ class MesocicloForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         if user and hasattr(user, 'perfil'):
-            # Misma lógica que en EntrenamientoForm: mostrar solo mis atletas
+            # CORRECCIÓN: Usamos Q para permitir atletas propios O libres (igual que en EntrenamientoForm)
             self.fields['atleta'].queryset = PerfilUsuario.objects.filter(
-                tipo='atleta',
-                entrenador=user.perfil
-            ).order_by('nombre')
+                Q(tipo='atleta'), 
+                Q(entrenador=user.perfil) | Q(entrenador__isnull=True)
+            ).distinct().order_by('nombre')
+        else:
+            # Fallback por si acaso
+            self.fields['atleta'].queryset = PerfilUsuario.objects.filter(tipo='atleta').order_by('nombre')
