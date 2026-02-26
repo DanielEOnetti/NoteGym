@@ -8,7 +8,7 @@ from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 from django.core.mail import EmailMultiAlternatives
 from django.urls import reverse
 from django.template import loader
-from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento
+from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento, Mesociclo
 from decimal import Decimal, ROUND_HALF_UP
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import authenticate, get_user_model
@@ -536,3 +536,27 @@ class CustomPasswordResetForm(PasswordResetForm):
             # Imprime el error real en la consola del servidor para depuración
             print(f"ERROR AL ENVIAR CORREO CON ANYMAIL/BREVO: {e}")
             raise e
+        
+
+class MesocicloForm(forms.ModelForm):
+    class Meta:
+        model = Mesociclo
+        fields = ["nombre", "atleta", "objetivo", "fecha_inicio", "semanas_objetivo", "notas"]
+        widgets = {
+            "fecha_inicio": forms.DateInput(attrs={"type": "date", "class": INPUT_CLASSES}),
+            "nombre": forms.TextInput(attrs={"class": INPUT_CLASSES}),
+            "objetivo": forms.TextInput(attrs={"class": INPUT_CLASSES}),
+            "notas": forms.Textarea(attrs={"class": TEXTAREA_CLASSES, "rows": 3}),
+            "semanas_objetivo": forms.NumberInput(attrs={"class": INPUT_CLASSES}),
+            "atleta": forms.Select(attrs={"class": SELECT_CLASSES}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user and hasattr(user, 'perfil'):
+            # Misma lógica que en EntrenamientoForm: mostrar solo mis atletas
+            self.fields['atleta'].queryset = PerfilUsuario.objects.filter(
+                tipo='atleta',
+                entrenador=user.perfil
+            ).order_by('nombre')

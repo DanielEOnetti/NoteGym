@@ -24,7 +24,9 @@ from core.views import (
     ListaAtletasView,
     AtletaRecordDetailView,
     ActualizarOrdenEjerciciosView,
-    EjercicioReactListView,
+    EjercicioReactListView,MesocicloCreateView, 
+    MesocicloDetailView, 
+    clonar_semana_view,
     
 )
 
@@ -74,6 +76,12 @@ urlpatterns = [
     path('mis-atletas/', ListaAtletasView.as_view(), name='lista_atletas'),
     path('entrenador/atleta/<int:pk>/records/', AtletaRecordDetailView.as_view(), name='atleta_record_detail'),
     path("progreso-maximo/<int:ejercicio_pk>/", AtletaProgresionMaxView.as_view(), name="progresion_maxima"),
+
+
+    # Nuevas URLs para Mesociclos
+    path('mesociclo/crear/', MesocicloCreateView.as_view(), name='mesociclo_crear'),
+    path('mesociclo/<int:pk>/', MesocicloDetailView.as_view(), name='mesociclo_detalle'),
+    path('entrenamiento/<int:pk>/clonar/', clonar_semana_view, name='entrenamiento_clonar'),
 
     # --------------------------------------------------------------------
     # Otros

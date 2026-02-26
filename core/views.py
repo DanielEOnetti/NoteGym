@@ -18,10 +18,10 @@ from django.forms import inlineformset_factory,modelformset_factory
 from decimal import Decimal
 from django.views.generic import CreateView, UpdateView, DetailView, ListView, TemplateView
 
-from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento
+from .models import PerfilUsuario, Entrenamiento, Ejercicio, SerieEjercicio, DetalleEntrenamiento, Mesociclo
 from .forms import (
     RegistroUsuarioForm, EntrenamientoForm, EjercicioForm,
-    SerieRegistroFormSet,  DetalleEntrenamientoForm,DetalleEntrenamientoFormSet, SerieFormSet, SeriePrescripcionInlineFormSet
+    SerieRegistroFormSet,  DetalleEntrenamientoForm,DetalleEntrenamientoFormSet, SerieFormSet, SeriePrescripcionInlineFormSet, MesocicloForm
 )
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.views import View
@@ -31,6 +31,8 @@ from django.db import transaction
 import json
 from .serializers import EjercicioSerializer
 from rest_framework import viewsets, permissions
+from .services import replicar_planificacion_semanal
+from django.views.decorators.http import require_POST
 
 def root_redirect(request):
     return redirect('login')
@@ -80,8 +82,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         usuario = self.request.user
 
+        # Obtenemos el perfil de forma segura
         try:
-            perfil = PerfilUsuario.objects.get(user=usuario)
+            perfil = getattr(usuario, 'perfil', None)
         except PerfilUsuario.DoesNotExist:
             perfil = None
 
@@ -92,10 +95,32 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # Personaliza el contexto en función del tipo de perfil.
         if perfil:
             if perfil.tipo == "entrenador":
-                context["entrenamientos_creados"] = Entrenamiento.objects.filter(entrenador=perfil)
+                # 1. Buscamos los MESOCICLOS (Programas)
+                context["mesociclos"] = Mesociclo.objects.filter(
+                    entrenador=perfil, 
+                    activo=True
+                ).order_by('-created_at')
+
+                # 2. Buscamos entrenamientos SUELTOS (los que NO tienen mesociclo)
+                context["entrenamientos_creados"] = Entrenamiento.objects.filter(
+                    entrenador=perfil,
+                    mesociclo__isnull=True # <--- Importante: Filtramos para no repetir
+                ).order_by('-created_at')[:5]
+
                 context["total_atletas"] = PerfilUsuario.objects.filter(entrenador=perfil).count()
+
             elif perfil.tipo == "atleta":
-                context["mis_rutinas"] = Entrenamiento.objects.filter(atleta=perfil)
+                # 1. Mis Mesociclos asignados
+                context["mis_mesociclos"] = Mesociclo.objects.filter(
+                    atleta=perfil,
+                    activo=True
+                ).order_by('-created_at')
+
+                # 2. Mis rutinas sueltas
+                context["mis_rutinas"] = Entrenamiento.objects.filter(
+                    atleta=perfil,
+                    mesociclo__isnull=True
+                ).order_by('-created_at')[:5]
 
         return context
 
@@ -163,6 +188,7 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         entrenamiento = self.object
 
+        # 1. Configuración del Formset de Detalles
         if self.request.POST:
             context["detalle_formset"] = DetalleEntrenamientoFormSet(
                 self.request.POST,
@@ -170,7 +196,6 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 prefix='detalles'
             )
         else:
-            
             queryset_detalles = entrenamiento.detalles.order_by('orden')
             context["detalle_formset"] = DetalleEntrenamientoFormSet(
                 instance=entrenamiento,
@@ -178,8 +203,40 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 queryset=queryset_detalles 
             )
         
-        
+        # 2. Datos generales para renderizado
         context['detalles'] = entrenamiento.detalles.order_by('orden').prefetch_related('series')
+
+        # 3. COACH HELPER: Obtener historial de la semana anterior
+        # Solo si pertenece a un mesociclo y no es la primera semana
+        if entrenamiento.mesociclo and entrenamiento.semana > 1:
+            semana_anterior = entrenamiento.semana - 1
+            try:
+                # Buscamos el entrenamiento equivalente (mismo mesociclo, semana previa, mismo día)
+                entreno_previo = Entrenamiento.objects.get(
+                    mesociclo=entrenamiento.mesociclo,
+                    semana=semana_anterior,
+                    dia_orden=entrenamiento.dia_orden
+                )
+                
+                # Mapa para acceso rápido en el template: (ejercicio_id, numero_serie) -> Objeto Serie
+                mapa_historial = {}
+                
+                # Optimizamos la consulta con prefetch
+                detalles_previos = entreno_previo.detalles.prefetch_related('series').all()
+                
+                for det in detalles_previos:
+                    for ser in det.series.all():
+                        # Clave compuesta única
+                        clave = (det.ejercicio_id, ser.numero_serie)
+                        mapa_historial[clave] = ser
+                
+                context['mapa_historial'] = mapa_historial
+                context['entreno_previo'] = entreno_previo
+                
+            except Entrenamiento.DoesNotExist:
+                # Si no existe la semana anterior (ej: se saltó una semana), no mostramos nada
+                pass
+        
         return context
 
     def form_valid(self, form):
@@ -191,66 +248,53 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 # 1. Guardar entrenamiento
                 self.object = form.save()
                 
-                # 2. Obtener el 'orden' máximo actual
+                # 2. Obtener el 'orden' máximo actual para nuevos ejercicios
                 max_orden_result = self.object.detalles.aggregate(Max('orden'))
                 current_max_orden = max_orden_result['orden__max'] or 0
 
-                # 3. Preparar el formset (pero no guardar aún)
+                # 3. Guardar detalles (ejercicios)
                 detalle_formset.instance = self.object
+                detalle_map = {} 
                 
-                # 4. Construir el mapa Y guardar objetos 
-                detalle_map = {} # El mapa que tu _procesar_series necesita
-                
-                # Iteramos sobre los Formularios
                 for i, form_in_formset in enumerate(detalle_formset.forms):
                     
-                    # 4A. Manejar borrados 
                     if form_in_formset in detalle_formset.deleted_forms:
-                        # Si el objeto ya existe en la BBDD, bórralo
                         if form_in_formset.instance.pk:
                             form_in_formset.instance.delete()
-                        # Si no, simplemente no lo procesamos
                         continue
                     
-                    # 4B. Saltar formularios inválidos (si los hubiera)
                     if not form_in_formset.is_valid():
-                        
                         continue 
-                        
-                    # 4C. Procesar formularios válidos
+                    
                     detalle = form_in_formset.instance
                     
-                    # ¡AQUÍ ESTÁ LA LÓGICA DEL 'ORDEN'!
-                    # Si es un objeto nuevo (sin pk), le asignamos un 'orden'
+                    # Asignar orden si es nuevo
                     if not detalle.pk:
                         current_max_orden += 1
                         detalle.orden = current_max_orden
                     
-                    # Guardamos el objeto (sea nuevo o modificado)
-                    detalle.save() # Con un .pk
-                    
-                    
-                    # Añadimos la instancia guardada (con .pk) al mapa
+                    detalle.save()
                     detalle_map[str(i)] = detalle
                         
-                # 5. Procesar series 
+                # 4. Procesar series (Incluyendo RPE)
                 self._procesar_series(self.request.POST, detalle_map)
 
             messages.success(self.request, "✅ Entrenamiento actualizado correctamente")
             return redirect(self.get_success_url())
         
         else:
-            # Si el formset NO es válido
             messages.error(self.request, "⚠️ Por favor, corrige los errores en el formulario.")
-            # Pasamos el formset con errores al contexto
-            context = self.get_context_data() # Recargamos el contexto
-            context['detalle_formset'] = detalle_formset # Sobrescribimos con el formset inválido
+            context = self.get_context_data()
+            context['detalle_formset'] = detalle_formset
             return self.render_to_response(context)
 
-    # Método para procesar series
     def _procesar_series(self, post_data, detalle_map):
+        """
+        Procesa la creación, edición y borrado de series.
+        Actualizado para incluir el campo 'rpe_prescrito'.
+        """
         
-        # Actualizar o eliminar series existentes
+        # A. Actualizar o eliminar series existentes
         series_existentes = SerieEjercicio.objects.filter(
             detalle_entrenamiento__entrenamiento=self.object
         )
@@ -259,24 +303,38 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
             serie_id = serie.id
             delete_key = f"serie_{serie_id}_delete"
             reps_key = f"serie_{serie_id}_repeticiones"
+            rpe_key = f"serie_{serie_id}_rpe" # <--- NUEVO
 
+            # Borrado
             if post_data.get(delete_key) == "1":
                 serie.delete()
                 continue
 
+            # Actualización de valores
+            cambios = False
             if reps_key in post_data:
                 serie.repeticiones_o_rango = post_data[reps_key]
+                cambios = True
             
-            serie.save()
+            if rpe_key in post_data: # <--- NUEVO
+                # Convertimos a float o None si viene vacío
+                rpe_val = post_data[rpe_key]
+                serie.rpe_prescrito = rpe_val if rpe_val else None
+                cambios = True
+            
+            if cambios:
+                serie.save()
 
-        # Crear nuevas series usando el 'detalle_map'
+        # B. Crear nuevas series usando el 'detalle_map'
         new_series_data = {} 
 
+        # Parsear los datos del POST para agruparlos por serie nueva
         for key, value in post_data.items():
             if not key.startswith("new_serie_form_"):
                 continue
             
             try:
+                # Formato esperado: new_serie_form_{form_index}_{counter}_{campo}
                 parts = key.split("_")
                 form_index = parts[3] 
                 counter = parts[4]    
@@ -292,6 +350,7 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
             except (IndexError, ValueError):
                 continue
         
+        # Crear los objetos SerieEjercicio
         series_para_crear = []
         for (form_index, counter), data in new_series_data.items():
             
@@ -301,22 +360,29 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 continue 
                 
             reps = data.get("repeticiones", "")
-            numero = data.get("numero", 1) # El JS lo envía
+            rpe = data.get("rpe", None) # <--- NUEVO
+            numero = data.get("numero", 1)
             
+            # Limpieza básica del RPE si viene vacío
+            if rpe == "": 
+                rpe = None
+
             series_para_crear.append(
                 SerieEjercicio(
                     detalle_entrenamiento=detalle,
                     repeticiones_o_rango=reps,
+                    rpe_prescrito=rpe, # <--- NUEVO
                     numero_serie=int(numero)
                 )
             )
 
-        # Usar bulk_create para eficiencia
         if series_para_crear:
             SerieEjercicio.objects.bulk_create(series_para_crear)
 
-    
     def get_success_url(self):
+        # Redirigir al detalle del mesociclo si existe, si no al dashboard
+        if self.object.mesociclo:
+             return reverse("mesociclo_detalle", kwargs={"pk": self.object.mesociclo.pk})
         return reverse("dashboard")
 
 
@@ -852,4 +918,81 @@ class EjercicioViewSet(viewsets.ModelViewSet):
     # Solo permitimos el acceso a usuarios autenticados
     permission_classes = [permissions.IsAuthenticated]
 
+
+
+
+# -------------------------------------------------
+# GESTIÓN DE MESOCICLOS (PROGRAMAS)
+# -------------------------------------------------
+
+class MesocicloCreateView(LoginRequiredMixin, CreateView):
+    model = Mesociclo
+    form_class = MesocicloForm
+    template_name = "core/mesociclos/crear.html" # Crearemos este template luego
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.entrenador = self.request.user.perfil
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("mesociclo_detalle", kwargs={"pk": self.object.pk})
+
+class MesocicloDetailView(LoginRequiredMixin, DetailView):
+    """
+    Panel de Control del Programa. Muestra las semanas y sesiones.
+    """
+    model = Mesociclo
+    template_name = "core/mesociclos/detalle.html" 
+    context_object_name = "mesociclo"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Organizar entrenamientos por semana para fácil visualización
+        # Estructura: { 1: [EntrenoA, EntrenoB], 2: [...] }
+        entrenamientos = self.object.entrenamientos.order_by('semana', 'dia_orden')
+        semanas = {}
+        for entreno in entrenamientos:
+            if entreno.semana not in semanas:
+                semanas[entreno.semana] = []
+            semanas[entreno.semana].append(entreno)
+        
+        context['semanas_dict'] = semanas
+        return context
+
+@require_POST
+@login_required
+def clonar_semana_view(request, pk):
+    """
+    Vista funcional para ejecutar la acción de "Replicar Estructura".
+    Recibe el ID de un Entrenamiento (origen) y crea las semanas siguientes.
+    """
+    entrenamiento = get_object_or_404(Entrenamiento, pk=pk)
     
+    # Seguridad: Solo el entrenador dueño puede clonar
+    if entrenamiento.entrenador != request.user.perfil:
+        messages.error(request, "No tienes permiso.")
+        return redirect('dashboard')
+
+    try:
+        # LÓGICA: Si estoy en la semana 1 y el mesociclo es de 4 semanas,
+        # creo las semanas 2, 3 y 4.
+        semana_actual = entrenamiento.semana
+        total_semanas = entrenamiento.mesociclo.semanas_objetivo
+        
+        if semana_actual >= total_semanas:
+            messages.warning(request, "Ya estás en la última semana, no se puede proyectar más.")
+        else:
+            semanas_destino = range(semana_actual + 1, total_semanas + 1)
+            replicar_planificacion_semanal(entrenamiento, semanas_destino)
+            messages.success(request, f"✅ Estructura replicada para las semanas {list(semanas_destino)}")
+            
+    except Exception as e:
+        messages.error(request, f"Error al clonar: {e}")
+
+    # Volver al detalle del mesociclo
+    return redirect('mesociclo_detalle', pk=entrenamiento.mesociclo.pk)

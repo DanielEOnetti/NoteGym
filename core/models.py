@@ -2,7 +2,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from decimal import Decimal  
-
+from django.utils import timezone
 
 class PerfilUsuario(models.Model):
     """
@@ -178,6 +178,49 @@ class PerfilUsuario(models.Model):
         
         # 6. Devolver el resultado final
         return marcas_finales
+    
+
+class Mesociclo(models.Model):
+    """
+    Agrupa varios entrenamientos en un bloque temporal (ej: 4 semanas).
+    Permite organizar la periodización a largo plazo.
+    """
+    nombre = models.CharField(max_length=150, help_text="Ej: Bloque Hipertrofia - Enero")
+    objetivo = models.CharField(max_length=200, blank=True, help_text="Objetivo principal (ej: Ganar Fuerza)")
+    
+    # Relaciones
+    entrenador = models.ForeignKey(
+        PerfilUsuario, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'tipo': 'entrenador'},
+        related_name='mesociclos_creados'
+    )
+    atleta = models.ForeignKey(
+        PerfilUsuario, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'tipo': 'atleta'},
+        related_name='mesociclos'
+    )
+    
+    # Configuración del bloque
+    fecha_inicio = models.DateField(default=timezone.now, verbose_name="Fecha de Inicio")
+    semanas_objetivo = models.PositiveIntegerField(
+        default=4, 
+        help_text="Duración planeada en semanas"
+    )
+    
+    activo = models.BooleanField(default=True, help_text="Si está activo, aparece en el dashboard")
+    notas = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nombre} ({self.atleta.nombre})"
+
+    class Meta:
+        verbose_name = "Mesociclo"
+        verbose_name_plural = "Mesociclos"
+        ordering = ["-created_at"]
 
 # ----------------------------------------------------------------------
 # EJERCICIOS
@@ -235,6 +278,39 @@ class Entrenamiento(models.Model):
         limit_choices_to={'tipo': 'atleta'},  # Restringe la selección a usuarios con rol de atleta.
         related_name='entrenamientos'
     )
+
+    mesociclo = models.ForeignKey(
+        Mesociclo, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='entrenamientos',
+        help_text="Bloque al que pertenece este entreno"
+    )
+
+    nombre = models.CharField(max_length=150, help_text="Nombre de la sesión (ej: Torso A)")
+    notas = models.TextField(blank=True, help_text="Notas o comentarios del entrenamiento")
+
+    # NUEVO: Orden temporal dentro del programa
+    semana = models.PositiveIntegerField(
+        default=1, 
+        help_text="Número de semana dentro del mesociclo"
+    )
+    dia_orden = models.PositiveIntegerField(
+        default=1, 
+        help_text="Orden de la sesión en la semana (1, 2, 3...)"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"S{self.semana} - {self.nombre} ({self.atleta.nombre})"
+
+    class Meta:
+        verbose_name = "Entrenamiento"
+        verbose_name_plural = "Entrenamientos"
+        ordering = ["-created_at"]
 
     # Nombre identificativo de la rutina.
     nombre = models.CharField(max_length=150, help_text="Nombre del entrenamiento")
@@ -345,8 +421,6 @@ class SerieEjercicio(models.Model):
         on_delete=models.CASCADE,
         related_name='series'
     )
-
-    # Campo auxiliar para acceder directamente al entrenamiento padre.
     entrenamiento = models.ForeignKey(
         Entrenamiento,
         on_delete=models.CASCADE,
@@ -354,33 +428,41 @@ class SerieEjercicio(models.Model):
         null=True,
         blank=True
     )
+    
+    numero_serie = models.PositiveIntegerField(help_text="Número de la serie")
+    repeticiones_o_rango = models.CharField(max_length=20, help_text="Ej: '10' o '8-12'")
 
-    # Número de identificación de la serie dentro del ejercicio.
-    numero_serie = models.PositiveIntegerField(help_text="Número de la serie dentro del ejercicio")
-
-    # Prescripción de repeticiones o rango establecido por el entrenador.
-    repeticiones_o_rango = models.CharField(
-        max_length=20,
-        help_text="Repeticiones o rango (ej: '10' o '8-12')"
+    # NUEVO: RPE Prescrito (Instrucción del Entrenador)
+    rpe_prescrito = models.DecimalField(
+        max_digits=3, 
+        decimal_places=1, 
+        null=True, 
+        blank=True, 
+        help_text="RPE Objetivo (ej: 8, 9)"
     )
 
-    # Peso real levantado por el atleta durante la ejecución.
     peso_real = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        null=True,
-        blank=True,
+        max_digits=5, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
         verbose_name="Peso levantado (kg)"
     )
-
-    # Número de repeticiones efectivamente realizadas.
     repeticiones_reales = models.PositiveIntegerField(
-        null=True,
-        blank=True,
+        null=True, 
+        blank=True, 
         verbose_name="Repeticiones realizadas"
     )
 
-    # Campos de registro temporal.
+    # NUEVO: RPE Real (Feedback del Atleta)
+    rpe_real = models.DecimalField(
+        max_digits=3, 
+        decimal_places=1, 
+        null=True, 
+        blank=True,
+        verbose_name="RPE Real"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

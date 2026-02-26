@@ -95,16 +95,14 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # --- Base de Datos (¡Configuración UNIFICADA y lista para Render!) ---
 DATABASES = {
-    # Lee la DB desde el entorno (PostgreSQL en Render o SQLite local)
     'default': env.db(),
 }
 
-# Configuración obligatoria de SSL para Render/PostgreSQL
-# Esta sección se aplica solo si se está usando una conexión PostgreSQL
-if 'OPTIONS' not in DATABASES['default']:
-    DATABASES['default']['OPTIONS'] = {}
-    
-DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+# CORRECCIÓN: Aplicar SSL solo si estamos usando PostgreSQL (Producción)
+if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+    if 'OPTIONS' not in DATABASES['default']:
+        DATABASES['default']['OPTIONS'] = {}
+    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 
 # --- Configuración de Contraseñas ---
 AUTH_PASSWORD_VALIDATORS = [
