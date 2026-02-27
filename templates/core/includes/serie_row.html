@@ -18,6 +18,13 @@
         {{ form.repeticiones_o_rango }}
         {% for error in form.repeticiones_o_rango.errors %}<p class="text-xs text-red-500 mt-1 italic">{{ error }}</p>{% endfor %}
     </td>
+
+    <td class="px-3 py-2 align-middle">
+        {{ form.rpe_prescrito }}
+        {% if form.rpe_prescrito.errors %}
+            <div class="text-xs text-red-500 mt-1">{{ form.rpe_prescrito.errors.0 }}</div>
+        {% endif %}
+    </td>
     
     {# 3. CELDA PARA PESO (Asumiendo 'peso_programado') #}
     <td class="px-3 py-2 w-1/4 md:w-32">

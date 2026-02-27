@@ -158,9 +158,22 @@ class SeriePrescripcionForm(forms.ModelForm):
 SeriePrescripcionInlineFormSet = inlineformset_factory(
     DetalleEntrenamiento,
     SerieEjercicio,
-    form=SeriePrescripcionForm,
-    extra=1,
+    fields=['numero_serie', 'repeticiones_o_rango', 'rpe_prescrito'], # <-- 1. Añade rpe_prescrito aquí
+    extra=0,
     can_delete=True,
+    widgets={
+        'numero_serie': forms.HiddenInput(),
+        'repeticiones_o_rango': forms.TextInput(attrs={
+            'class': 'w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm',
+            'placeholder': 'Ej: 10-12'
+        }),
+        # <-- 2. Añade este widget para que se vea igual que en la otra pantalla
+        'rpe_prescrito': forms.NumberInput(attrs={
+            'class': 'w-full border-purple-200 bg-purple-50 text-purple-700 rounded-md shadow-sm sm:text-sm font-bold focus:ring-purple-500 focus:border-purple-500',
+            'step': '0.5',
+            'placeholder': 'RPE'
+        }),
+    }
 )
 
 # ------------------------------------------------------------------------

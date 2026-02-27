@@ -5,7 +5,7 @@
 {% block content %}
 <div class="max-w-7xl mx-auto">
     
-    {# 1. Encabezado de la Página (Estilo unificado) #}
+    {# 1. Encabezado de la Página #}
     <header class="mb-8">
         <nav class="text-sm mb-3 text-gray-500">
             <a href="{% url 'dashboard' %}" class="hover:text-primary">Dashboard</a>
@@ -20,16 +20,14 @@
                 </h1>
                 <p class="mt-2 text-lg text-gray-600">
                     Asignado a <span class="font-semibold text-primary">{{ entrenamiento.atleta.nombre }}</span>
+                    {% if entrenamiento.mesociclo %}
+                        <span class="ml-2 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full font-bold">Semana {{ entrenamiento.semana }}</span>
+                    {% endif %}
                 </p>
-                {% if entrenamiento.notas %}
-                    <div class="mt-3 text-sm text-gray-600 italic flex items-start bg-gray-50 p-2 rounded border border-gray-100 max-w-lg">
-                         <svg class="w-4 h-4 mr-1.5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
-                        <span>{{ entrenamiento.notas }}</span>
-                    </div>
-                {% endif %}
             </div>
             
-            {# Botón de Editar (Estilo unificado) #}
+            {# Botón de Editar (Solo entrenadores) #}
+            {% if request.user.perfil.tipo == 'entrenador' %}
             <div class="mt-4 sm:mt-0">
                 <a href="{% url 'entrenamiento_update' pk=entrenamiento.pk %}" 
                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-indigo-700 transition duration-150">
@@ -39,12 +37,13 @@
                     Editar Plan
                 </a>
             </div>
+            {% endif %}
         </div>
     </header>
 
     <hr class="border-gray-200 my-8">
 
-    {# 2. Lista de Ejercicios (Estilo unificado) #}
+    {# 2. Lista de Ejercicios #}
     <div class="space-y-8">
         {% for detalle in detalles %}
             <div class="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
@@ -55,21 +54,15 @@
                             <span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary text-white font-bold text-sm">
                                 {{ forloop.counter }}
                             </span>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">
-                                    {{ detalle.ejercicio.nombre }}
-                                </h3>
-                                {# Eliminado 'peso_recomendado' según decisión anterior #}
-                            </div>
+                            <h3 class="text-lg font-bold text-gray-900">
+                                {{ detalle.ejercicio.nombre }}
+                            </h3>
                         </div>
-                        
-                        {# Badge con número de series #}
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-primary">
                             {{ detalle.series.count }} serie{{ detalle.series.count|pluralize }}
                         </span>
                     </div>
                     
-                    {# Notas específicas del ejercicio #}
                     {% if detalle.notas %}
                         <div class="mt-3 p-3 bg-white rounded-md border border-gray-100 text-sm text-gray-700 italic flex items-start">
                             <svg class="w-4 h-4 mr-1.5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
@@ -80,84 +73,80 @@
 
                 <div class="px-6 py-4">
                     {% if detalle.series.all %}
-                        <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">
-                                                Serie
-                                            </th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-4/12"> 
-                                                Plan
-                                            </th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-3/12"> 
-                                                Repeticiones
-                                            </th>
-                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-3/12"> 
-                                                Peso(kg)
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        {% for serie in detalle.series.all|dictsort:"numero_serie" %}
-                                            <tr class="hover:bg-gray-50">
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-center">
-                                                    <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-indigo-100 text-primary font-bold text-xs">
-                                                        {{ serie.numero_serie }}
-                                                    </span>
-                                                </td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-left font-medium">
-                                                    {{ serie.repeticiones_o_rango }}
-                                                </td>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/12">Serie</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan (Reps)</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-purple-600 uppercase tracking-wider">RPE Obj.</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reps</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Peso</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-purple-600 uppercase tracking-wider">RPE</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for serie in detalle.series.all|dictsort:"numero_serie" %}
+                                        <tr class="hover:bg-gray-50 transition-colors">
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-center">
+                                                <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-indigo-100 text-primary font-bold text-xs">
+                                                    {{ serie.numero_serie }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                                {{ serie.repeticiones_o_rango }}
+                                            </td>
 
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-left">
-                                                    {% if serie.repeticiones_reales is not None %}
-                                                        <span class="font-semibold text-gray-800">{{ serie.repeticiones_reales }}</span>
-                                                    {% else %}
-                                                        <span class="text-gray-400 italic">No registradas</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-left">
-                                                    {% if serie.peso_real is not None %}
-                                                        <span class="font-semibold text-gray-800">{{ serie.peso_real }} kg</span>
-                                                    {% else %}
-                                                        <span class="text-gray-400 italic">No registrado</span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                                            {# RPE OBJETIVO #}
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-center font-bold text-purple-700 bg-purple-50/30">
+                                                {{ serie.rpe_prescrito|default:"-" }}
+                                            </td>
+
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                                {% if serie.repeticiones_reales is not None %}
+                                                    <span class="font-semibold text-gray-800">{{ serie.repeticiones_reales }}</span>
+                                                {% else %}
+                                                    <span class="text-gray-300 italic">--</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                                {% if serie.peso_real is not None %}
+                                                    <span class="font-semibold text-gray-800">{{ serie.peso_real }} kg</span>
+                                                {% else %}
+                                                    <span class="text-gray-300 italic">--</span>
+                                                {% endif %}
+                                            </td>
+
+                                            {# RPE REAL #}
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-center font-bold text-purple-800 bg-purple-50/50">
+                                                {% if serie.rpe_real %}
+                                                    {{ serie.rpe_real }}
+                                                {% else %}
+                                                    <span class="text-gray-300 font-normal">--</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
-                        <div class="text-center py-6 text-gray-500 border border-dashed border-gray-300 rounded-md bg-gray-50">
-                            <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5h6" /></svg>
-                            <p class="text-sm">No hay series configuradas para este ejercicio.</p>
+                        <div class="text-center py-6 text-gray-500">
+                            <p class="text-sm">No hay series configuradas.</p>
                         </div>
                     {% endif %}
                 </div>
-            </div> {% empty %}
-            {# Mensaje: No hay ejercicios en el entrenamiento (Estilo unificado) #}
+            </div>
+        {% empty %}
             <div class="text-center py-16 px-6 bg-white shadow-xl rounded-xl border border-gray-200">
-                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                <h3 class="mt-4 text-xl font-semibold text-gray-900">
-                    ¡Aún no hay ejercicios!
-                </h3>
-                <p class="mt-2 text-base text-gray-500">
-                    Edita este entrenamiento para añadir los ejercicios primero.
-                </p>
-                <div class="mt-6">
-                    <a href="{% url 'entrenamiento_update' pk=entrenamiento.pk %}" 
-                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-indigo-700 transition">
-                        Añadir Ejercicios Ahora
-                    </a>
-                </div>
+                <h3 class="mt-4 text-xl font-semibold text-gray-900">¡Aún no hay ejercicios!</h3>
+                <p class="mt-2 text-base text-gray-500">Edita este entrenamiento para añadir los ejercicios primero.</p>
             </div>
         {% endfor %}
     </div>
 
-    <hr class="border-gray-200 my-8">
-
-    {# 3. Botón de Volver (Estilo unificado) #}
-    <div class="mt-8">
+    {# 3. Botón de Volver #}
+    <div class="mt-8 mb-12">
         <a href="{% url 'dashboard' %}" 
            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition duration-150">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

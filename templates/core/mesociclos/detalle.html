@@ -40,13 +40,13 @@
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">DÍA {{ entreno.dia_orden }}</span>
                             
                             {% if request.user.perfil.tipo == 'entrenador' %} 
-<form action="{% url 'entrenamiento_clonar' entreno.pk %}" method="POST" onsubmit="return confirm('¿Crear la Semana {{ semana_num|add:"1" }} basada en esta sesión?');">
-    {% csrf_token %}
-    <button type="submit" title="Clonar a la siguiente semana" class="text-gray-400 hover:text-purple-600 transition-colors">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-    </button>
-</form>
-{% endif %}
+                            <form action="{% url 'entrenamiento_clonar' entreno.pk %}" method="POST" onsubmit="return confirm('¿Crear la Semana {{ semana_num|add:1 }} basada en esta sesión?');">
+                                {% csrf_token %}
+                                <button type="submit" title="Clonar a la siguiente semana" class="text-gray-400 hover:text-purple-600 transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                         
                         <h3 class="font-bold text-gray-800 text-lg mb-1">{{ entreno.nombre }}</h3>
@@ -54,9 +54,14 @@
                     </div>
 
                     {% if request.user.perfil.tipo == 'entrenador' %}
-                        <a href="{% url 'entrenamiento_update' entreno.pk %}" class="w-full text-center bg-white border border-gray-300 hover:border-blue-500 text-gray-700 hover:text-blue-600 font-medium py-2 rounded transition-colors text-sm">
-                            Planificar / Editar
-                        </a>
+                        <div class="flex flex-col gap-2">
+                            <a href="{% url 'entrenamiento_update' entreno.pk %}" class="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded transition-colors text-sm">
+                                Planificar / Editar
+                            </a>
+                            <a href="{% url 'entrenamiento_detail' entreno.pk %}" class="w-full text-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 py-1.5 rounded transition-colors text-xs font-semibold">
+                                Ver Resumen
+                            </a>
+                        </div>
                     {% else %}
                         <a href="{% url 'detalle_rutina' entreno.pk %}" class="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded transition-colors text-sm shadow-sm flex items-center justify-center gap-2">
                             <span>💪</span> Entrenar

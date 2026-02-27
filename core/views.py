@@ -418,7 +418,7 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
         if series_para_crear:
             SerieEjercicio.objects.bulk_create(series_para_crear)
 
-        def get_success_url(self):
+    def get_success_url(self):
     # Si tras la edición ahora tiene mesociclo, redirigir allí para ver cómo queda el mapa
             if self.object.mesociclo:
                 return reverse("mesociclo_detalle", kwargs={"pk": self.object.mesociclo.pk})
@@ -475,33 +475,29 @@ class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def test_func(self):
         """Asegura que solo el entrenador dueño pueda configurar series."""
-
         try:
             return self.request.user.perfil == self.entrenamiento.entrenador
         except AttributeError:
-             print(f"Error en test_func: El usuario {self.request.user} no tiene 'perfil' o el entrenamiento no tiene 'entrenador'.")
-             return False
-        except PerfilUsuario.DoesNotExist:
-             print(f"Error en test_func: No existe PerfilUsuario para {self.request.user}.")
-             return False
-
+            return False
 
     def setup(self, request, *args, **kwargs):
-        """
-        Obtiene el objeto Entrenamiento una vez al inicio 
-        y lo guarda en self.entrenamiento.
-        Se ejecuta antes que test_func, get_context_data y post.
-        """
         super().setup(request, *args, **kwargs)
         self.entrenamiento = get_object_or_404(Entrenamiento, pk=self.kwargs['pk'])
 
+    def get_success_url(self):
+        """
+        Si el entrenamiento pertenece a un mesociclo, vuelve al detalle del mesociclo.
+        Si no, vuelve al dashboard.
+        """
+        if self.entrenamiento.mesociclo:
+            return reverse('mesociclo_detalle', kwargs={'pk': self.entrenamiento.mesociclo.pk})
+        return reverse('dashboard')
+
     def get_context_data(self, **kwargs):
-        """Prepara la lista de (detalle, formset) para el template."""
         context = super().get_context_data(**kwargs)
         detalles = self.entrenamiento.detalles.all().select_related('ejercicio')
         
         detalles_with_formsets = []
-        
         for detalle in detalles:
             prefix = f'series-{detalle.pk}' 
             if self.request.POST:
@@ -522,61 +518,67 @@ class ConfigurarSeriesView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return context
 
     def post(self, request, *args, **kwargs):
-        """Valida y guarda todos los formsets."""
         detalles = self.entrenamiento.detalles.all()
         formsets = []
-        is_valid = True 
+        is_valid = True
 
+        print("--- INICIANDO VALIDACIÓN DE FORMSETS ---")
+
+        # 0. Hacemos una copia mutable del POST para inyectar datos si faltan
+        post_data = request.POST.copy()
+        
+        # Inyectamos 'numero_serie' temporalmente para que pase la validación de Django
+        for key in list(post_data.keys()):
+            if key.endswith('-repeticiones_o_rango'): # Buscamos una fila de serie que exista
+                base_prefix = key.replace('-repeticiones_o_rango', '')
+                num_key = f"{base_prefix}-numero_serie"
+                
+                # Si no viene el número de serie, o viene vacío, le ponemos un valor temporal (1)
+                if not post_data.get(num_key):
+                    post_data[num_key] = 1
+
+        # 1. Reconstruir y validar todos los formsets usando nuestra copia (post_data)
         for detalle in detalles:
             prefix = f'series-{detalle.pk}'
             serie_formset = SeriePrescripcionInlineFormSet(
-                self.request.POST, 
+                post_data, # <--- USAMOS LA COPIA MODIFICADA AQUÍ
                 instance=detalle, 
                 prefix=prefix
             )
+            
             formsets.append(serie_formset)
+            
             if not serie_formset.is_valid():
-                is_valid = False 
-                print(f"Errores en formset para Detalle {detalle.pk} (Prefijo: {prefix}):")
-                print(serie_formset.errors) 
-                print(serie_formset.non_form_errors())
+                is_valid = False
+                print(f"❌ Formset Inválido para Detalle {detalle.pk} ({prefix})")
+                print(f"Errores: {serie_formset.errors}")
 
+        # 2. Si todo es válido, guardamos
         if is_valid:
             try:
                 with transaction.atomic():
                     for formset in formsets:
-                        # 1. Obtener instancias SIN guardar en DB todavía
-                        instances = formset.save(commit=False) 
+                        instances = formset.save(commit=False)
                         
-                        # 2. Iterar y asignar numero_serie ANTES de guardar
+                        # Aquí sobrescribimos el número temporal por el ORDEN REAL (1, 2, 3...)
                         for i, instance in enumerate(instances):
-                            # Comprobación más robusta para None o vacío
-                            if instance.numero_serie is None or str(instance.numero_serie).strip() == '': 
-                                instance.numero_serie = i + 1 # Asignar número basado en el índice
+                            instance.numero_serie = i + 1
+                            instance.save()
                             
-                            # Asegurar que la FK al detalle está asignada
-                            if not instance.detalle_entrenamiento_id and formset.instance:
-                                instance.detalle_entrenamiento = formset.instance
-                            # Solo guardar si tiene la FK (evita errores si el detalle no existe)
-                            if instance.detalle_entrenamiento_id:
-                                instance.save() 
-                        
-                        # 3. Manejar borrados (el formset lo hace automáticamente al guardar)
+                        # Procesar la papelera
                         for obj in formset.deleted_objects:
-                             obj.delete()
+                            obj.delete()
 
                 messages.success(request, "✅ Series configuradas correctamente.")
-                return redirect(self.get_success_url()) 
-            except Exception as e:
-                 print(f"Error durante la transacción de guardado: {e}") 
-                 messages.error(request, f"⚠️ Ocurrió un error al guardar: {e}")
-        else:
-            messages.error(request, "⚠️ Por favor, corrige los errores en las series.")
-            
-        context = self.get_context_data() 
-        return self.render_to_response(context)
-    success_url = reverse_lazy("dashboard")
+                return redirect(self.get_success_url())
 
+            except Exception as e:
+                print(f"❌ ERROR EN BASE DE DATOS: {e}")
+                messages.error(request, f"Error al guardar en la base de datos: {e}")
+                return self.render_to_response(self.get_context_data())
+        else:
+            messages.error(request, "⚠️ Hay errores en el formulario.")
+            return self.render_to_response(self.get_context_data())
 # -------------------------------------------------
 # GESTIÓN DE EJERCICIOS
 # -------------------------------------------------
