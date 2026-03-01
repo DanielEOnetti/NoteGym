@@ -151,7 +151,7 @@ if not DEBUG:
     
     # --- Configuración de Estáticos (Solo Producción) ---
     # Esto es el corazón de Whitenoise para producción
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
     # --- Configuración de Seguridad (Solo Producción) ---
     SESSION_COOKIE_SECURE = True
