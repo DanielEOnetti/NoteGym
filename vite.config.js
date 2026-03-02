@@ -1,14 +1,18 @@
+// vite.config.js
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
   
-  base: '/static/',  // ← CAMBIA ESTO
+  // Cambia esto para que coincida con la carpeta de salida relativa a STATIC_URL
+  base: '/static/dist/', 
   
   build: {
+    
     outDir: 'static/dist', 
     manifest: true, 
+    emptyOutDir: true, 
     
     rollupOptions: {
       input: 'frontend/main.jsx' 
