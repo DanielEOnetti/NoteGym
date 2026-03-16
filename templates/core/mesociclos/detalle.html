@@ -18,66 +18,78 @@
         </div>
         
         {% if request.user.perfil.tipo == 'entrenador' %}
-        <a href="{% url 'entrenamiento_crear' %}?mesociclo={{ mesociclo.id }}" class="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        <a href="{% url 'entrenamiento_crear' %}?mesociclo={{ mesociclo.id }}" class="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
             + Añadir Sesión
         </a>
         {% endif %}
     </div>
 
-    <div class="space-y-8">
+    <div class="space-y-4">
         {% for semana_num, entrenamientos in semanas_dict.items %}
-        <div class="relative">
-            <div class="absolute -left-3 -top-3 bg-white border border-gray-200 px-3 py-1 rounded-md shadow-sm z-10">
-                <span class="text-sm font-bold text-gray-700">SEMANA {{ semana_num }}</span>
-            </div>
+        
+        <details class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" {% if forloop.first %}open{% endif %}>
+            
+            <summary class="px-6 py-4 font-bold text-gray-800 text-lg cursor-pointer bg-gray-50 hover:bg-gray-100 flex justify-between items-center list-none select-none">
+                <div class="flex items-center gap-3">
+                    <span class="bg-indigo-100 text-indigo-800 text-sm px-3 py-1 rounded-md uppercase tracking-wider font-bold">
+                        Semana {{ semana_num }}
+                    </span>
+                </div>
+                
+                <span class="transition-transform duration-300 group-open:rotate-180 text-gray-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </span>
+            </summary>
 
-            <div class="bg-white rounded-xl border border-gray-200 p-6 pt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {% for entreno in entrenamientos %}
-                <div class="group relative flex flex-col justify-between bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-lg p-4 transition-all duration-200">
-                    
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">DÍA {{ entreno.dia_orden }}</span>
-                            
-                            {% if request.user.perfil.tipo == 'entrenador' %} 
-                            <form action="{% url 'entrenamiento_clonar' entreno.pk %}" method="POST" onsubmit="return confirm('¿Crear la Semana {{ semana_num|add:1 }} basada en esta sesión?');">
-                                {% csrf_token %}
-                                <button type="submit" title="Clonar a la siguiente semana" class="text-gray-400 hover:text-purple-600 transition-colors">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-                                </button>
-                            </form>
-                            {% endif %}
-                        </div>
+            <div class="p-6 bg-white border-t border-gray-100">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for entreno in entrenamientos %}
+                    <div class="group relative flex flex-col justify-between bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 rounded-lg p-4 transition-all duration-200">
                         
-                        <h3 class="font-bold text-gray-800 text-lg mb-1">{{ entreno.nombre }}</h3>
-                        <p class="text-xs text-gray-500 mb-4">{{ entreno.detalles.count }} ejercicios</p>
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">DÍA {{ entreno.dia_orden }}</span>
+                                
+                                {% if request.user.perfil.tipo == 'entrenador' %} 
+                                <form action="{% url 'entrenamiento_clonar' entreno.pk %}" method="POST" onsubmit="return confirm('¿Crear la Semana {{ semana_num|add:1 }} basada en esta sesión?');">
+                                    {% csrf_token %}
+                                    <button type="submit" title="Clonar a la siguiente semana" class="text-gray-400 hover:text-purple-600 transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            
+                            <h3 class="font-bold text-gray-800 text-lg mb-1">{{ entreno.nombre }}</h3>
+                            <p class="text-xs text-gray-500 mb-4">{{ entreno.detalles.count }} ejercicios</p>
+                        </div>
+
+                        {% if request.user.perfil.tipo == 'entrenador' %}
+                            <div class="flex flex-col gap-2">
+                                <a href="{% url 'entrenamiento_update' entreno.pk %}" class="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded transition-colors text-sm">
+                                    Planificar / Editar
+                                </a>
+                                <a href="{% url 'entrenamiento_detail' entreno.pk %}" class="w-full text-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 py-1.5 rounded transition-colors text-xs font-semibold">
+                                    Ver Resumen
+                                </a>
+                            </div>
+                        {% else %}
+                            <a href="{% url 'detalle_rutina' entreno.pk %}" class="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded transition-colors text-sm shadow-sm flex items-center justify-center gap-2">
+                                <span>💪</span> Entrenar
+                            </a>
+                        {% endif %}
                     </div>
+                    {% endfor %}
 
                     {% if request.user.perfil.tipo == 'entrenador' %}
-                        <div class="flex flex-col gap-2">
-                            <a href="{% url 'entrenamiento_update' entreno.pk %}" class="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded transition-colors text-sm">
-                                Planificar / Editar
-                            </a>
-                            <a href="{% url 'entrenamiento_detail' entreno.pk %}" class="w-full text-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 py-1.5 rounded transition-colors text-xs font-semibold">
-                                Ver Resumen
-                            </a>
-                        </div>
-                    {% else %}
-                        <a href="{% url 'detalle_rutina' entreno.pk %}" class="w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded transition-colors text-sm shadow-sm flex items-center justify-center gap-2">
-                            <span>💪</span> Entrenar
-                        </a>
+                    <a href="{% url 'entrenamiento_crear' %}?mesociclo={{ mesociclo.id }}&semana={{ semana_num }}" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg p-4 text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors h-full min-h-[140px]">
+                        <span class="text-2xl mb-1">+</span>
+                        <span class="text-sm font-medium">Añadir Día</span>
+                    </a>
                     {% endif %}
                 </div>
-                {% endfor %}
-
-                {% if request.user.perfil.tipo == 'entrenador' %}
-                <a href="{% url 'entrenamiento_crear' %}?mesociclo={{ mesociclo.id }}&semana={{ semana_num }}" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg p-4 text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors h-full min-h-[140px]">
-                    <span class="text-2xl mb-1">+</span>
-                    <span class="text-sm font-medium">Añadir Día</span>
-                </a>
-                {% endif %}
             </div>
-        </div>
+        </details>
         {% endfor %}
     </div>
 </div>

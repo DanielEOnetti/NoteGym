@@ -56,21 +56,25 @@ def replicar_planificacion_semanal(entrenamiento_origen, semanas_destino):
                 # 4. Copiar Series (Aquí está la clave del RPE)
                 series_origen = detalle.series.all().order_by('numero_serie')
                 
+                # ¡ATENCIÓN A LA INDENTACIÓN AQUÍ! Debe ir dentro del "for detalle"
                 for serie in series_origen:
                     SerieEjercicio.objects.create(
                         detalle_entrenamiento=nuevo_detalle,
                         numero_serie=serie.numero_serie,
                         
-                        # --- LO QUE SE COPIA (La prescripción) ---
+                        # --- LO QUE SE COPIA (La prescripción del entrenador) ---
                         repeticiones_o_rango=serie.repeticiones_o_rango,
                         rpe_prescrito=serie.rpe_prescrito, 
                         
-                        # --- LO QUE SE LIMPIA (El feedback) ---
-                        peso_real=None,          # Se vacía
-                        repeticiones_reales=None,# Se vacía
-                        rpe_real=None            # Se vacía
+                        # --- LO QUE AHORA SE MANTIENE COMO REFERENCIA ---
+                        peso_real=serie.peso_real,                    # Mantiene el peso de la semana anterior
+                        repeticiones_reales=serie.repeticiones_reales, # Mantiene las repeticiones logradas
+                        
+                        # --- LO QUE SE LIMPIA (El feedback de la nueva sesión) ---
+                        rpe_real=None                                 # Se vacía el esfuerzo percibido para que lo rellene
                     )
             
+            # Esto debe ir fuera del "for detalle", para añadir el entreno una sola vez
             nuevos_entrenamientos.append(nuevo_entreno)
             
     return nuevos_entrenamientos

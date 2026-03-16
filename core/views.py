@@ -996,7 +996,7 @@ class MesocicloDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         # Organizar entrenamientos por semana para fácil visualización
         # Estructura: { 1: [EntrenoA, EntrenoB], 2: [...] }
-        entrenamientos = self.object.entrenamientos.order_by('semana', 'dia_orden')
+        entrenamientos = self.object.entrenamientos.order_by('-semana', 'dia_orden')
         semanas = {}
         for entreno in entrenamientos:
             if entreno.semana not in semanas:
