@@ -274,12 +274,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Delegación de eventos para botones dinámicos
     document.addEventListener("click", (e) => {
+        
         // ELIMINAR EJERCICIO
         if (e.target.closest(".remove-ejercicio-btn")) {
             const card = e.target.closest(".ejercicio-card");
             const deleteInput = card.querySelector("input[name$='-DELETE']");
             if (deleteInput) {
-                deleteInput.value = "on";
+                deleteInput.checked = true; // Marca la eliminación para Django
                 card.classList.add("hidden");
             } else {
                 card.remove();
@@ -287,7 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renumberExercises();
         }
 
-        // AÑADIR SERIE (CORREGIDO)
+        // AÑADIR SERIE
         if (e.target.closest(".add-serie-btn")) {
             const btn = e.target.closest(".add-serie-btn");
             const formIndex = btn.dataset.formIndex;
@@ -327,18 +328,44 @@ document.addEventListener("DOMContentLoaded", () => {
             renumberSeries(tbody);
         }
 
-// ELIMINAR EJERCICIO
-        if (e.target.closest(".remove-ejercicio-btn")) {
-            const card = e.target.closest(".ejercicio-card");
-            const deleteInput = card.querySelector("input[name$='-DELETE']");
-            if (deleteInput) {
-                deleteInput.checked = true; // <--- SOLUCIÓN: Cambiar a .checked = true
-                card.classList.add("hidden");
+        // ELIMINAR SERIE
+        if (e.target.closest(".remove-serie-btn")) {
+            const row = e.target.closest(".serie-row");
+            const tbody = row.closest(".series-tbody");
+            const deleteFlag = row.querySelector(".delete-flag");
+            
+            if (deleteFlag) {
+                deleteFlag.value = "1";
+                row.classList.add("hidden");
             } else {
-                card.remove();
+                row.remove();
             }
-            renumberExercises();
+            renumberSeries(tbody);
         }
+    });
+
+    // REORDENAR ÍNDICES ANTES DE ENVIAR EL FORMULARIO PARA QUE DJANGO RESPETE EL ORDEN
+    document.getElementById("form-entrenamiento").addEventListener("submit", function() {
+        const cards = document.querySelectorAll("#ejercicios-container .ejercicio-card");
+        
+        cards.forEach((card, index) => {
+            // 1. Actualizar inputs principales del formset de Django
+            const elements = card.querySelectorAll("input, select, textare");
+            elements.forEach(el => {
+                if (el.name && el.name.includes("detalles-")) {
+                    el.name = el.name.replace(/detalles-\d+-/, `detalles-${index}-`);
+                }
+                if (el.id && el.id.includes("id_detalles-")) {
+                    el.id = el.id.replace(/id_detalles-\d+-/, `id_detalles-${index}-`);
+                }
+            });
+            
+            // 2. Actualizar las series nuevas asociadas a esta tarjeta
+            const newSeries = card.querySelectorAll("input[name^='new_serie_form_']");
+            newSeries.forEach(el => {
+                el.name = el.name.replace(/new_serie_form_\d+_/, `new_serie_form_${index}_`);
+            });
+        });
     });
 
     // Inicializar Sortable para reordenar ejercicios

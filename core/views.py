@@ -287,13 +287,15 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                 # 1. Guardar entrenamiento
                 self.object = form.save()
                 
-                # 2. Obtener el 'orden' máximo actual para nuevos ejercicios
-                max_orden_result = self.object.detalles.aggregate(Max('orden'))
-                current_max_orden = max_orden_result['orden__max'] or 0
+                
 
-                # 3. Guardar detalles (ejercicios)
+# 3. Guardar detalles (ejercicios)
                 detalle_formset.instance = self.object
                 detalle_map = {} 
+                
+                # Creamos un contador para asegurar que el orden sea secuencial (1, 2, 3...)
+                # ignorando los ejercicios que el usuario haya borrado.
+                orden_real = 1
                 
                 for i, form_in_formset in enumerate(detalle_formset.forms):
                     
@@ -307,10 +309,9 @@ class EntrenamientoUpdateView(LoginRequiredMixin, UpdateView):
                     
                     detalle = form_in_formset.instance
                     
-                    # Asignar orden si es nuevo
-                    if not detalle.pk:
-                        current_max_orden += 1
-                        detalle.orden = current_max_orden
+                    # ASIGNAMOS EL NUEVO ORDEN SIEMPRE A TODOS LOS EJERCICIOS
+                    detalle.orden = orden_real
+                    orden_real += 1
                     
                     detalle.save()
                     detalle_map[str(i)] = detalle
