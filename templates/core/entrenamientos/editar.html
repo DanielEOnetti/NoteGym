@@ -327,19 +327,17 @@ document.addEventListener("DOMContentLoaded", () => {
             renumberSeries(tbody);
         }
 
-        // ELIMINAR SERIE
-        if (e.target.closest(".remove-serie-btn")) {
-            const row = e.target.closest(".serie-row");
-            const tbody = row.closest(".series-tbody");
-            const deleteFlag = row.querySelector(".delete-flag");
-            
-            if (deleteFlag) {
-                deleteFlag.value = "1";
-                row.classList.add("hidden");
+// ELIMINAR EJERCICIO
+        if (e.target.closest(".remove-ejercicio-btn")) {
+            const card = e.target.closest(".ejercicio-card");
+            const deleteInput = card.querySelector("input[name$='-DELETE']");
+            if (deleteInput) {
+                deleteInput.checked = true; // <--- SOLUCIÓN: Cambiar a .checked = true
+                card.classList.add("hidden");
             } else {
-                row.remove();
+                card.remove();
             }
-            renumberSeries(tbody);
+            renumberExercises();
         }
     });
 
